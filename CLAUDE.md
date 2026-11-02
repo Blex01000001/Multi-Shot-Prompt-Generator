@@ -14,7 +14,9 @@
 
 - **Tailwind CSS**：透過 CDN（`https://cdn.tailwindcss.com`）載入，設定寫在 `<head>` 內的 `tailwind.config`（`darkMode: 'class'`、自訂 `brand` 色票）
 - **字體**：Google Fonts，`Inter`（介面文字）與 `JetBrains Mono`（時間戳記、Prompt 輸出等等寬內容）
+- **SortableJS**：`1.15.6`，從 jsDelivr CDN 載入（`https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js`），用於鏡頭卡片拖曳排序；版本請固定，不要用 `@latest`。若 CDN 載入失敗，`window.Sortable` 不存在時會略過，上下移按鈕仍可使用。
 - **JavaScript**：原生 Vanilla JS，無框架；以單一 `state` 物件 + `render()` 重繪的方式管理畫面
+- **Favicon**：直接以 data URI 內嵌在 `<head>` 的 SVG（與頂部橫條相同的漸層攝影機圖示），不需要額外檔案。
 
 ## 設計規範（修改 UI 時務必遵守）
 
@@ -28,6 +30,7 @@
    - **新增或修改任何介面文字時，三種語言都必須一起補齊。**
    - Prompt 的欄位名稱、`[Shot N]` 標籤與提示詞片語（prompt chips）維持**英文**，因為是要送給模型的內容；chip 的 tooltip 才依語言顯示說明。
 4. 須同時支援手機與桌機（使用 `sm:` / `lg:` 斷點）。
+5. **頂部橫條**：桌機（`sm` 以上）高度 64px（`sm:h-16`）並固定在頂端（`sm:sticky`）；右側欄 `lg:top-20` 依此計算，改橫條高度時要一起調整。手機上標題會換行，橫條高度自動、不固定在頂端。
 
 ## 輸出格式（核心邏輯，請勿任意更動）
 
@@ -65,15 +68,34 @@ non_diegetic_music: <背景音樂，預設 N/A>
 | `attachShotEvents()` | 每次 render 後重新綁定卡片內的輸入、時間微調、移動、複製、刪除事件 |
 | `addShot()` / `duplicateShot()` / `deleteShot()` / `moveShot()` | 鏡頭增刪、複製、排序 |
 | `adjustShotTime()` | ±100ms / ±500ms 時間微調 |
-| `copyPromptToClipboard()` | 複製完整 Prompt，並顯示 toast 提示 |
-| `PROMPT_CHIPS` / `renderChips()` | 常用提示詞片語；點擊（事件委派在 `#chips-list`）附加到目前聚焦（`activeShotIndex`）的鏡頭 |
+| `copyPromptToClipboard()` | 以 `navigator.clipboard.writeText()` 複製完整 Prompt；失敗時（例如非安全連線）改為自動選取預覽文字並提示使用者按 Ctrl+C。不要再使用 `document.execCommand('copy')` |
+| `Sortable.create(shotsListEl, …)` | 拖曳排序（只能從卡片左上角的把手 `.drag-handle` 拖曳），`onEnd` 時同步調整 `state.shots` 順序再 `render()` |
+| `DEFAULT_TAGS` / `loadTags()` / `saveTags()` / `normalizeTag()` | 使用者自訂的提示詞標籤：`{ id, text, note, notes? }`。`text` 是送給模型的英文；`note` 是使用者自己的說明；內建標籤另有 `notes`（各語言翻譯），使用者編輯說明後會改用 `note` |
+| `renderChips()` / `#tag-search` | 右側標籤列表與搜尋；點擊標籤（事件委派在 `#chips-list`）附加到目前聚焦（`activeShotIndex`）的鏡頭 |
+| `renderTagManager()` 與 `#tag-modal` | 標籤管理視窗：新增、編輯、刪除（按兩下確認）、搜尋、匯出／匯入 JSON、恢復預設 |
 
-除了語言設定外，鏡頭內容**不會**儲存到 `localStorage`，重新整理頁面會回到預設值。
+### localStorage
+
+| Key | 內容 |
+| --- | --- |
+| `msp-lang` | 介面語言（`en` / `zh-Hant` / `ja`） |
+| `msp-tags` | 使用者的提示詞標籤陣列 |
+
+所有讀寫都包在 `try/catch`，無法使用 storage 時要能正常運作（回到預設值）。鏡頭內容目前**不會**儲存，重新整理頁面會回到預設值。
+
+### 標籤匯出／匯入格式
+
+```json
+{ "type": "minimax-h3-prompt-tags", "version": 1, "exportedAt": "…", "tags": [{ "text": "dolly zoom", "note": "滑動變焦" }] }
+```
+
+匯入時也接受純陣列（字串或 `{ text, note }` 物件）。匯入採**合併**，文字相同（不分大小寫）的標籤會略過。
 
 ## 開發與測試
 
 - 直接以瀏覽器開啟 `index.html`，或啟動本機伺服器：`python3 -m http.server 8000`，再前往 `http://localhost:8000`。
-- 沒有自動化測試；修改後請手動確認：新增／刪除／複製／排序鏡頭、時間微調、時間戳記錯誤提示、空白鏡頭略過與重新編號、prompt chip 插入、三種語言切換、預覽輸出格式與複製功能皆正常，並檢查手機寬度（約 390px）不會出現水平捲動。
+- 沒有自動化測試；修改後請手動確認：新增／刪除／複製鏡頭、上下移與拖曳排序、時間微調、時間戳記錯誤提示、空白鏡頭略過與重新編號、標籤插入／搜尋／新增／編輯／刪除／匯出／匯入、三種語言切換、預覽輸出格式與複製功能皆正常，並檢查手機寬度（約 390px）不會出現水平捲動。
+- 剪貼簿 API 需要安全環境：`https://`、`http://localhost` 或直接開啟檔案（`file://`）都可以。
 - 保持單一檔案架構，除非使用者要求，不要引入建置工具或拆分檔案。
 
 ## 每次 commit 後的回報規則
