@@ -1,0 +1,78 @@
+# MiniMax H3 Multi-Shot Prompt Generator
+
+A small browser tool for writing **multi-shot image-to-video prompts** for **MiniMax H3**.
+Describe each shot, set its timestamp, and copy a ready-to-paste structured prompt.
+
+### 🚀 [Open the tool](https://blex01000001.github.io/Multi-Shot-Prompt-Generator/)
+
+`https://blex01000001.github.io/Multi-Shot-Prompt-Generator/`
+
+No sign-up, no install. It runs entirely in your browser.
+
+![Screenshot of the prompt generator](docs/screenshot.png)
+
+> [!NOTE]
+> The output format is designed for **MiniMax H3 image-to-video**.
+> It has not been tested with other video models. They may ignore or misread the
+> `[Shot N] At MM:SS.mmm` timeline and the field names, so check the results yourself
+> before relying on it elsewhere.
+
+## Output format
+
+```
+integrated_multimodal_description: [Shot 1] At 00:00.000, a girl turns toward the camera and smiles. [Shot 2] At 00:01.000, camera slowly pushes in, low-angle shot looking up.
+
+overall_soundscape: gentle wind, distant city ambience
+non_diegetic_music: N/A
+```
+
+- Timestamps use `MM:SS.mmm`.
+- Shots with an empty description are left out, and the remaining shots are renumbered.
+- `overall_soundscape` and `non_diegetic_music` default to `N/A`.
+- Write prompt text in English. Only the interface is translated.
+
+## How to use
+
+1. Write what happens in each shot (motion, camera work, facial expression, and so on).
+2. Adjust timestamps with the `-500ms` / `-100ms` / `+100ms` / `+500ms` buttons or by typing.
+   New shots start one time step (default 1 s) after the last shot.
+3. Optionally fill in the ambient sound and background music.
+4. Click **Copy Prompt** and paste the result into MiniMax H3, for example a ComfyUI MiniMax H3 workflow.
+
+## Features
+
+- **Shot editing**: add, duplicate, delete, move up and down, or drag to reorder.
+- **Timestamp check**: highlights malformed timestamps and shots that are not later than the previous output shot.
+- **Auto formatting**: optionally adds a period to the end of each shot.
+- **Prompt tags**: search and click common phrases to insert them into the current shot.
+  Add, edit, or delete your own tags, and import or export them as JSON.
+- **Languages**: English, 繁體中文, and 日本語 (globe icon, top right).
+- **Desktop and mobile** layouts.
+
+Your tags and language choice are saved in the browser (`localStorage`).
+Shot contents are **not saved yet**, so reloading the page clears them.
+
+## Run it locally
+
+There is no build step. Download or clone the repository and open `index.html` in a browser.
+Keep `index.html`, `css/`, and `js/` together.
+
+```bash
+git clone https://github.com/Blex01000001/Multi-Shot-Prompt-Generator.git
+```
+
+An internet connection is needed: Tailwind CSS, SortableJS, and the fonts load from CDNs.
+
+## Development
+
+`npm` is only used for tests:
+
+```bash
+npm install
+```
+
+```bash
+npm run test:all
+```
+
+See [`CLAUDE.md`](CLAUDE.md) for the file layout and contribution rules.
