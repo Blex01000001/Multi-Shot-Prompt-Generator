@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>MiniMax Video Multi-Shot Prompt Generator</title>
+  <title>MiniMax H3 Multi-Shot Prompt Generator</title>
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Google Fonts: Inter -->
@@ -16,7 +16,7 @@
       theme: {
         extend: {
           fontFamily: {
-            sans: ['Inter', 'sans-serif'],
+            sans: ['Inter', '"Noto Sans TC"', '"Noto Sans JP"', 'sans-serif'],
             mono: ['JetBrains Mono', 'monospace'],
           },
           colors: {
@@ -57,38 +57,57 @@
     .glow-purple {
       box-shadow: 0 0 25px -5px rgba(99, 102, 241, 0.25);
     }
+    /* Timestamp input: exactly as wide as "00:00.000" in the monospace font */
+    .ts-input {
+      width: 9ch;
+    }
   </style>
 </head>
 <body class="bg-slate-950 text-slate-100 font-sans min-h-screen antialiased flex flex-col selection:bg-indigo-500 selection:text-white text-[16px] sm:text-[17px]">
 
   <!-- Header Bar -->
   <header class="border-b border-slate-800/80 bg-slate-900/60 backdrop-blur-md sticky top-0 z-40">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
-      <div class="flex items-center gap-3.5">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 min-h-[5rem] py-3 sm:py-0 sm:h-20 flex items-center justify-between gap-3">
+      <div class="flex items-center gap-3.5 min-w-0">
         <div class="w-11 h-11 rounded-xl bg-gradient-to-tr from-indigo-600 via-purple-600 to-pink-500 flex items-center justify-center shadow-lg shadow-indigo-500/30 shrink-0">
           <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
           </svg>
         </div>
-        <div>
-          <h1 class="font-extrabold text-xl sm:text-2xl leading-tight tracking-tight bg-gradient-to-r from-white via-slate-200 to-indigo-200 bg-clip-text text-transparent">
-            MiniMax H3 多鏡頭提示詞產生器
+        <div class="min-w-0">
+          <h1 data-i18n="title" class="font-extrabold text-xl sm:text-2xl leading-tight tracking-tight bg-gradient-to-r from-white via-slate-200 to-indigo-200 bg-clip-text text-transparent">
+            MiniMax H3 Multi-Shot Prompt Generator
           </h1>
-          <p class="text-xs sm:text-sm text-slate-400 font-medium">結構化 AI 影片 Prompt 與多鏡頭分鏡腳本工具</p>
+          <p data-i18n="subtitle" class="text-xs sm:text-sm text-slate-400 font-medium">Structured AI video prompts &amp; multi-shot storyboard tool</p>
         </div>
       </div>
 
       <!-- Quick Actions -->
-      <div class="flex items-center gap-3">
-        <button id="reset-btn" class="px-3.5 py-2 text-xs sm:text-sm font-semibold text-slate-300 hover:text-white bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/60 rounded-xl transition-all flex items-center gap-2">
+      <div class="flex items-center gap-2 sm:gap-3 shrink-0">
+        <button id="reset-btn" data-i18n-title="reset" class="px-3 sm:px-3.5 py-2 text-xs sm:text-sm font-semibold text-slate-300 hover:text-white bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/60 rounded-xl transition-all flex items-center gap-2">
           <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
           </svg>
-          重置範例
+          <span data-i18n="reset" class="hidden sm:inline">Reset</span>
         </button>
-        <span class="inline-flex items-center px-3 py-1.5 rounded-full text-xs sm:text-sm font-semibold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
-          支援 MiniMax H3 規範
+        <span data-i18n="badge" class="hidden md:inline-flex items-center px-3 py-1.5 rounded-full text-xs sm:text-sm font-semibold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+          MiniMax H3 compatible
         </span>
+
+        <!-- Language Switcher -->
+        <div class="relative" id="lang-wrap">
+          <button id="lang-btn" type="button" aria-haspopup="menu" aria-expanded="false" data-i18n-title="language" data-i18n-aria="language"
+            class="p-2 rounded-xl text-slate-300 hover:text-white bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/60 transition-all">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"></path>
+            </svg>
+          </button>
+          <div id="lang-menu" role="menu" class="hidden absolute right-0 mt-2 w-44 p-1.5 rounded-xl bg-slate-900/95 backdrop-blur-md border border-slate-700/80 shadow-2xl shadow-black/50 z-50">
+            <button type="button" role="menuitemradio" data-lang="en" class="lang-option w-full text-left px-3 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all">English</button>
+            <button type="button" role="menuitemradio" data-lang="zh-Hant" class="lang-option w-full text-left px-3 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all">繁體中文</button>
+            <button type="button" role="menuitemradio" data-lang="ja" class="lang-option w-full text-left px-3 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all">日本語</button>
+          </div>
+        </div>
       </div>
     </div>
   </header>
@@ -107,19 +126,22 @@
               <svg class="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path>
               </svg>
-              鏡頭序列設定
+              <span data-i18n="seqTitle">Shot Sequence</span>
             </h2>
-            <p class="text-xs sm:text-sm text-slate-400 mt-1">管理多鏡頭數量與時間戳記遞增間隔</p>
+            <p data-i18n="seqDesc" class="text-xs sm:text-sm text-slate-400 mt-1">Manage the number of shots and the timestamp step</p>
           </div>
 
           <!-- Total Shots Badge & Quick Add -->
           <div class="flex items-center gap-4">
-            <span class="text-xs sm:text-sm font-semibold text-slate-300">總鏡頭數: <strong id="shot-count-badge" class="text-indigo-400 font-bold text-base sm:text-lg">2</strong></span>
+            <span class="text-xs sm:text-sm font-semibold text-slate-300">
+              <span data-i18n="totalShots">Total shots</span>: <strong id="shot-count-badge" class="text-indigo-400 font-bold text-base sm:text-lg">2</strong>
+              <span id="exported-count" class="text-slate-400 font-medium"></span>
+            </span>
             <button id="add-shot-btn" class="px-4 py-2.5 text-xs sm:text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-500 active:scale-95 rounded-xl shadow-md shadow-indigo-600/30 transition-all flex items-center gap-2">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
               </svg>
-              新增 Shot
+              <span data-i18n="addShot">Add Shot</span>
             </button>
           </div>
         </div>
@@ -127,22 +149,16 @@
         <!-- Quick Settings Grid -->
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-5 mt-5">
           <div>
-            <label class="block text-xs sm:text-sm font-semibold text-slate-300 mb-1.5">新增鏡頭預設時間間隔</label>
-            <select id="time-step-select" class="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-3.5 py-2 text-xs sm:text-sm font-medium text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-              <option value="0.8">0.8 秒 (+00:00.800)</option>
-              <option value="1" selected>1.0 秒 (+00:01.000)</option>
-              <option value="1.5">1.5 秒 (+00:01.500)</option>
-              <option value="2">2.0 秒 (+00:02.000)</option>
-              <option value="3">3.0 秒 (+00:03.000)</option>
-            </select>
+            <label for="time-step-select" data-i18n="timeStepLabel" class="block text-xs sm:text-sm font-semibold text-slate-300 mb-1.5">Default time step for new shots</label>
+            <select id="time-step-select" class="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-3.5 py-2 text-xs sm:text-sm font-medium text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"></select>
           </div>
 
           <div>
-            <label class="block text-xs sm:text-sm font-semibold text-slate-300 mb-1.5">自動格式優化</label>
+            <span data-i18n="autoFormat" class="block text-xs sm:text-sm font-semibold text-slate-300 mb-1.5">Auto formatting</span>
             <div class="flex items-center gap-2.5 pt-1.5">
               <input type="checkbox" id="auto-period-check" checked class="w-4 h-4 rounded bg-slate-900 border-slate-700 text-indigo-600 focus:ring-indigo-500 focus:ring-offset-slate-900">
-              <label for="auto-period-check" class="text-xs sm:text-sm text-slate-300 cursor-pointer select-none font-medium">
-                自動在每個 Shot 結尾補上句號 (`.`)
+              <label for="auto-period-check" data-i18n="autoPeriodLabel" class="text-xs sm:text-sm text-slate-300 cursor-pointer select-none font-medium">
+                Append a period (.) to the end of each shot
               </label>
             </div>
           </div>
@@ -159,7 +175,7 @@
         <svg class="w-4 h-4 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
         </svg>
-        新增下一個 Shot 到序列
+        <span data-i18n="addShotBottom">Add the next shot to the sequence</span>
       </button>
 
       <!-- Audio / Soundscape Settings Card -->
@@ -168,16 +184,16 @@
           <svg class="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12 0c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"></path>
           </svg>
-          聲音與音樂設定 (Soundscape & Music)
+          <span data-i18n="audioTitle">Soundscape &amp; Music</span>
         </h2>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
           <div>
-            <label class="block text-xs sm:text-sm font-semibold text-slate-300 mb-1.5">overall_soundscape (環境音效)</label>
+            <label for="soundscape-input" class="block text-xs sm:text-sm font-semibold text-slate-300 mb-1.5">overall_soundscape <span data-i18n="soundscapeHint">(ambient sound)</span></label>
             <input type="text" id="soundscape-input" value="N/A" class="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-purple-500 font-mono">
           </div>
           <div>
-            <label class="block text-xs sm:text-sm font-semibold text-slate-300 mb-1.5">non_diegetic_music (背景音樂)</label>
+            <label for="music-input" class="block text-xs sm:text-sm font-semibold text-slate-300 mb-1.5">non_diegetic_music <span data-i18n="musicHint">(background music)</span></label>
             <input type="text" id="music-input" value="N/A" class="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-purple-500 font-mono">
           </div>
         </div>
@@ -186,24 +202,32 @@
     </section>
 
     <!-- Right Column: Live Formatted Output & Preset Tools (5 Cols) -->
-    <section class="lg:col-span-5 flex flex-col gap-5 lg:sticky lg:top-20">
+    <section class="lg:col-span-5 flex flex-col gap-5 lg:sticky lg:top-24 lg:self-start">
 
       <!-- Output Preview Card (Compact) -->
       <div class="glass-panel rounded-2xl p-4 sm:p-5 border border-slate-800 flex flex-col glow-purple">
         <!-- Preview Header -->
-        <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+        <div class="flex items-center justify-between gap-3 pb-3 border-b border-slate-800">
           <div class="flex items-center gap-2">
             <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
-            <h2 class="text-sm sm:text-base font-bold text-slate-100 uppercase tracking-wider">即時整合輸出 (Preview)</h2>
+            <h2 data-i18n="previewTitle" class="text-sm sm:text-base font-bold text-slate-100 uppercase tracking-wider">Live Output (Preview)</h2>
           </div>
 
           <!-- Copy Button -->
-          <button id="copy-btn" class="px-3.5 py-2 text-xs sm:text-sm font-bold text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 active:scale-95 rounded-xl shadow-md shadow-indigo-500/20 transition-all flex items-center gap-1.5">
+          <button id="copy-btn" class="px-3.5 py-2 text-xs sm:text-sm font-bold text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 active:scale-95 rounded-xl shadow-md shadow-indigo-500/20 transition-all flex items-center gap-1.5 shrink-0">
             <svg id="copy-icon" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path>
             </svg>
-            <span id="copy-text">複製 Prompt</span>
+            <span id="copy-text">Copy Prompt</span>
           </button>
+        </div>
+
+        <!-- Timestamp Issues Summary -->
+        <div id="ts-warning" class="hidden mt-3 px-3 py-2 rounded-xl bg-rose-950/50 border border-rose-500/40 text-rose-200 text-xs sm:text-sm font-semibold flex items-center gap-2">
+          <svg class="w-4 h-4 shrink-0 text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"></path>
+          </svg>
+          <span id="ts-warning-text"></span>
         </div>
 
         <!-- Preformatted Output Display -->
@@ -212,31 +236,20 @@
         </div>
 
         <!-- Copy Stats / Helper Note -->
-        <div class="mt-2.5 pt-2.5 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-400">
-          <span>可直接貼入 ComfyUI MiniMax H3 工作流</span>
-          <span id="char-count" class="font-mono text-slate-400 font-semibold">0 字元</span>
+        <div class="mt-2.5 pt-2.5 border-t border-slate-800/80 flex items-center justify-between gap-3 text-xs text-slate-400">
+          <span data-i18n="comfyNote">Paste directly into a ComfyUI MiniMax H3 workflow</span>
+          <span id="char-count" class="font-mono text-slate-400 font-semibold shrink-0">0</span>
         </div>
       </div>
 
       <!-- Quick Prompt Tags Library -->
       <div class="glass-panel rounded-2xl p-5 border border-slate-800">
-        <h3 class="text-xs sm:text-sm font-bold text-slate-200 uppercase tracking-wider mb-3 flex items-center justify-between">
-          <span>常用 AI 影片提示詞標籤</span>
-          <span class="text-xs text-slate-400 font-normal">點擊自動插入至當前 Shot</span>
+        <h3 class="text-xs sm:text-sm font-bold text-slate-200 uppercase tracking-wider mb-3 flex items-center justify-between gap-3">
+          <span data-i18n="tagsTitle">Common AI Video Prompt Tags</span>
+          <span data-i18n="tagsHint" class="text-xs text-slate-400 font-normal normal-case tracking-normal text-right">Click to insert into the current shot</span>
         </h3>
-        
-        <div class="flex flex-wrap gap-2 max-h-48 overflow-y-auto pr-1">
-          <button class="prompt-chip px-3 py-1.5 text-xs sm:text-sm font-medium bg-slate-800/80 hover:bg-indigo-600/30 hover:border-indigo-500/50 text-slate-200 hover:text-indigo-100 border border-slate-700/60 rounded-lg transition-all" title="傲嬌鼓嘴臉紅">pouting with flushed cheeks</button>
-          <button class="prompt-chip px-3 py-1.5 text-xs sm:text-sm font-medium bg-slate-800/80 hover:bg-indigo-600/30 hover:border-indigo-500/50 text-slate-200 hover:text-indigo-100 border border-slate-700/60 rounded-lg transition-all" title="轉頭回眸看">looking back over her shoulder</button>
-          <button class="prompt-chip px-3 py-1.5 text-xs sm:text-sm font-medium bg-slate-800/80 hover:bg-indigo-600/30 hover:border-indigo-500/50 text-slate-200 hover:text-indigo-100 border border-slate-700/60 rounded-lg transition-all" title="鏡頭緩慢推進">camera slowly pushes in</button>
-          <button class="prompt-chip px-3 py-1.5 text-xs sm:text-sm font-medium bg-slate-800/80 hover:bg-indigo-600/30 hover:border-indigo-500/50 text-slate-200 hover:text-indigo-100 border border-slate-700/60 rounded-lg transition-all" title="平滑環繞到身後">smoothly orbits around to her back</button>
-          <button class="prompt-chip px-3 py-1.5 text-xs sm:text-sm font-medium bg-slate-800/80 hover:bg-indigo-600/30 hover:border-indigo-500/50 text-slate-200 hover:text-indigo-100 border border-slate-700/60 rounded-lg transition-all" title="喘氣急促呼吸">panting and breathing rapidly</button>
-          <button class="prompt-chip px-3 py-1.5 text-xs sm:text-sm font-medium bg-slate-800/80 hover:bg-indigo-600/30 hover:border-indigo-500/50 text-slate-200 hover:text-indigo-100 border border-slate-700/60 rounded-lg transition-all" title="害羞閉單眼">winks shyly with one eye closed</button>
-          <button class="prompt-chip px-3 py-1.5 text-xs sm:text-sm font-medium bg-slate-800/80 hover:bg-indigo-600/30 hover:border-indigo-500/50 text-slate-200 hover:text-indigo-100 border border-slate-700/60 rounded-lg transition-all" title="黏稠透明液體緩慢滴落">viscous clear liquid slowly drips</button>
-          <button class="prompt-chip px-3 py-1.5 text-xs sm:text-sm font-medium bg-slate-800/80 hover:bg-indigo-600/30 hover:border-indigo-500/50 text-slate-200 hover:text-indigo-100 border border-slate-700/60 rounded-lg transition-all" title="拉成細絲狀">stretches into thin strands</button>
-          <button class="prompt-chip px-3 py-1.5 text-xs sm:text-sm font-medium bg-slate-800/80 hover:bg-indigo-600/30 hover:border-indigo-500/50 text-slate-200 hover:text-indigo-100 border border-slate-700/60 rounded-lg transition-all" title="仰角向上拍攝">low-angle shot looking up</button>
-          <button class="prompt-chip px-3 py-1.5 text-xs sm:text-sm font-medium bg-slate-800/80 hover:bg-indigo-600/30 hover:border-indigo-500/50 text-slate-200 hover:text-indigo-100 border border-slate-700/60 rounded-lg transition-all" title="拉起裙襬搖擺">lifting skirt and swaying back and forth</button>
-        </div>
+
+        <div id="chips-list" class="flex flex-wrap gap-2 max-h-48 overflow-y-auto pr-1"></div>
       </div>
 
     </section>
@@ -248,11 +261,192 @@
     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
     </svg>
-    <span id="toast-msg" class="text-xs sm:text-sm font-semibold">已複製到剪貼簿！</span>
+    <span id="toast-msg" class="text-xs sm:text-sm font-semibold"></span>
   </div>
 
   <!-- Application Logic -->
   <script>
+    // ---------------------------------------------------------------------
+    // i18n
+    // ---------------------------------------------------------------------
+    const I18N = {
+      en: {
+        docTitle: 'MiniMax H3 Multi-Shot Prompt Generator',
+        title: 'MiniMax H3 Multi-Shot Prompt Generator',
+        subtitle: 'Structured AI video prompts & multi-shot storyboard tool',
+        reset: 'Reset',
+        badge: 'MiniMax H3 compatible',
+        language: 'Language',
+        seqTitle: 'Shot Sequence',
+        seqDesc: 'Manage the number of shots and the timestamp step',
+        totalShots: 'Total shots',
+        exportedCount: '({n} in output)',
+        addShot: 'Add Shot',
+        timeStepLabel: 'Default time step for new shots',
+        sec: 'sec',
+        autoFormat: 'Auto formatting',
+        autoPeriodLabel: 'Append a period (.) to the end of each shot',
+        addShotBottom: 'Add the next shot to the sequence',
+        audioTitle: 'Soundscape & Music',
+        soundscapeHint: '(ambient sound)',
+        musicHint: '(background music)',
+        previewTitle: 'Live Output (Preview)',
+        copy: 'Copy Prompt',
+        copied: 'Copied!',
+        comfyNote: 'Paste directly into a ComfyUI MiniMax H3 workflow',
+        chars: '{n} chars',
+        tagsTitle: 'Common AI Video Prompt Tags',
+        tagsHint: 'Click to insert into the current shot',
+        toastCopied: 'Full prompt copied to clipboard!',
+        toastCopyFail: 'Copy failed. Please copy manually.',
+        toastReset: 'Reset to the default sample!',
+        toastChip: 'Tag added to the selected shot card',
+        moveUp: 'Move up',
+        moveDown: 'Move down',
+        duplicate: 'Duplicate shot',
+        delete: 'Delete shot',
+        adjustMinus: 'Subtract {n} ms',
+        adjustPlus: 'Add {n} ms',
+        placeholder: 'Describe on-screen motion, body movement, camera work or facial expression...',
+        skipped: 'Empty shot — it will be skipped in the output',
+        tsInvalid: 'Invalid timestamp — use MM:SS.mmm (e.g. 00:01.500)',
+        tsOrder: 'Must be later than the previous shot ({prev} at {ts})',
+        tsSummary: '{n} timestamp issue(s) — check the highlighted shots',
+      },
+      'zh-Hant': {
+        docTitle: 'MiniMax H3 多鏡頭提示詞產生器',
+        title: 'MiniMax H3 多鏡頭提示詞產生器',
+        subtitle: '結構化 AI 影片 Prompt 與多鏡頭分鏡腳本工具',
+        reset: '重置範例',
+        badge: '支援 MiniMax H3 規範',
+        language: '語言',
+        seqTitle: '鏡頭序列設定',
+        seqDesc: '管理多鏡頭數量與時間戳記遞增間隔',
+        totalShots: '總鏡頭數',
+        exportedCount: '（輸出 {n} 個）',
+        addShot: '新增 Shot',
+        timeStepLabel: '新增鏡頭預設時間間隔',
+        sec: '秒',
+        autoFormat: '自動格式優化',
+        autoPeriodLabel: '自動在每個 Shot 結尾補上句號 (.)',
+        addShotBottom: '新增下一個 Shot 到序列',
+        audioTitle: '聲音與音樂設定 (Soundscape & Music)',
+        soundscapeHint: '(環境音效)',
+        musicHint: '(背景音樂)',
+        previewTitle: '即時整合輸出 (Preview)',
+        copy: '複製 Prompt',
+        copied: '已複製！',
+        comfyNote: '可直接貼入 ComfyUI MiniMax H3 工作流',
+        chars: '{n} 字元',
+        tagsTitle: '常用 AI 影片提示詞標籤',
+        tagsHint: '點擊自動插入至當前 Shot',
+        toastCopied: '已複製完整的 Prompt 至剪貼簿！',
+        toastCopyFail: '複製失敗，請手動複製。',
+        toastReset: '已重置為預設範例！',
+        toastChip: '已新增提示詞至目前選取的 Shot 卡片',
+        moveUp: '向上移',
+        moveDown: '向下移',
+        duplicate: '複製 Shot',
+        delete: '刪除 Shot',
+        adjustMinus: '減少 {n} 毫秒',
+        adjustPlus: '增加 {n} 毫秒',
+        placeholder: '輸入畫面動態、肢體動作、運鏡或表情描述...',
+        skipped: '空白鏡頭，輸出時會自動略過',
+        tsInvalid: '時間戳記格式錯誤，請使用 MM:SS.mmm（例如 00:01.500）',
+        tsOrder: '必須晚於上一個鏡頭（{prev} 為 {ts}）',
+        tsSummary: '有 {n} 個時間戳記問題，請檢查標示紅色的鏡頭',
+      },
+      ja: {
+        docTitle: 'MiniMax H3 マルチショット プロンプトジェネレーター',
+        title: 'MiniMax H3 マルチショット プロンプトジェネレーター',
+        subtitle: '構造化 AI 動画プロンプト＆マルチショット絵コンテツール',
+        reset: 'リセット',
+        badge: 'MiniMax H3 対応',
+        language: '言語',
+        seqTitle: 'ショットシーケンス',
+        seqDesc: 'ショット数とタイムスタンプの間隔を管理',
+        totalShots: '総ショット数',
+        exportedCount: '（出力 {n} 件）',
+        addShot: 'ショット追加',
+        timeStepLabel: '新規ショットのデフォルト間隔',
+        sec: '秒',
+        autoFormat: '自動フォーマット',
+        autoPeriodLabel: '各ショットの末尾にピリオド (.) を自動追加',
+        addShotBottom: '次のショットをシーケンスに追加',
+        audioTitle: 'サウンド＆音楽設定',
+        soundscapeHint: '(環境音)',
+        musicHint: '(BGM)',
+        previewTitle: 'リアルタイム出力 (Preview)',
+        copy: 'プロンプトをコピー',
+        copied: 'コピーしました！',
+        comfyNote: 'ComfyUI の MiniMax H3 ワークフローにそのまま貼り付け可能',
+        chars: '{n} 文字',
+        tagsTitle: 'よく使う AI 動画プロンプトタグ',
+        tagsHint: 'クリックで現在のショットに挿入',
+        toastCopied: 'プロンプト全体をクリップボードにコピーしました！',
+        toastCopyFail: 'コピーに失敗しました。手動でコピーしてください。',
+        toastReset: 'デフォルトのサンプルにリセットしました！',
+        toastChip: '選択中のショットカードにタグを追加しました',
+        moveUp: '上へ移動',
+        moveDown: '下へ移動',
+        duplicate: 'ショットを複製',
+        delete: 'ショットを削除',
+        adjustMinus: '{n} ミリ秒減らす',
+        adjustPlus: '{n} ミリ秒増やす',
+        placeholder: '画面の動き、身体の動作、カメラワーク、表情などを入力...',
+        skipped: '空欄のショットは出力時にスキップされます',
+        tsInvalid: 'タイムスタンプの形式が不正です。MM:SS.mmm（例：00:01.500）で入力してください',
+        tsOrder: '前のショット（{prev}：{ts}）より後の時刻にしてください',
+        tsSummary: 'タイムスタンプの問題が {n} 件あります。赤く表示されたショットを確認してください',
+      },
+    };
+
+    const SUPPORTED_LANGS = ['en', 'zh-Hant', 'ja'];
+    const LANG_STORAGE_KEY = 'msp-lang';
+
+    function loadLang() {
+      try {
+        const saved = localStorage.getItem(LANG_STORAGE_KEY);
+        if (SUPPORTED_LANGS.includes(saved)) return saved;
+      } catch (e) { /* storage unavailable */ }
+      return 'en';
+    }
+
+    function saveLang(lang) {
+      try { localStorage.setItem(LANG_STORAGE_KEY, lang); } catch (e) { /* ignore */ }
+    }
+
+    let currentLang = loadLang();
+
+    function t(key, vars = {}) {
+      const dict = I18N[currentLang] || I18N.en;
+      let str = dict[key] ?? I18N.en[key] ?? key;
+      Object.keys(vars).forEach(k => {
+        str = str.replaceAll(`{${k}}`, vars[k]);
+      });
+      return str;
+    }
+
+    // Prompt chips: the chip text is sent to the model (always English);
+    // the tooltip explains it in the current UI language.
+    const PROMPT_CHIPS = [
+      { text: 'pouting with flushed cheeks', zh: '傲嬌鼓嘴臉紅', ja: '頬を赤らめてふくれっ面' },
+      { text: 'looking back over her shoulder', zh: '轉頭回眸看', ja: '肩越しに振り返る' },
+      { text: 'camera slowly pushes in', zh: '鏡頭緩慢推進', ja: 'カメラがゆっくり寄る' },
+      { text: 'smoothly orbits around to her back', zh: '平滑環繞到身後', ja: '背後へ滑らかに回り込む' },
+      { text: 'panting and breathing rapidly', zh: '喘氣急促呼吸', ja: '息を切らして荒く呼吸する' },
+      { text: 'winks shyly with one eye closed', zh: '害羞閉單眼', ja: '恥ずかしそうに片目をつぶる' },
+      { text: 'viscous clear liquid slowly drips', zh: '黏稠透明液體緩慢滴落', ja: '粘り気のある透明な液体がゆっくり滴る' },
+      { text: 'stretches into thin strands', zh: '拉成細絲狀', ja: '細い糸状に伸びる' },
+      { text: 'low-angle shot looking up', zh: '仰角向上拍攝', ja: 'ローアングルで見上げる' },
+      { text: 'lifting skirt and swaying back and forth', zh: '拉起裙襬搖擺', ja: 'スカートを持ち上げて左右に揺れる' },
+    ];
+
+    const TIME_STEPS = [0.8, 1, 1.5, 2, 3];
+
+    // ---------------------------------------------------------------------
+    // State
+    // ---------------------------------------------------------------------
     // Default initial sample state (Blank description)
     const initialShots = [
       {
@@ -280,6 +474,7 @@
     const shotsListEl = document.getElementById('shots-list');
     const outputPreviewEl = document.getElementById('output-preview');
     const shotCountBadgeEl = document.getElementById('shot-count-badge');
+    const exportedCountEl = document.getElementById('exported-count');
     const charCountEl = document.getElementById('char-count');
     const soundscapeInput = document.getElementById('soundscape-input');
     const musicInput = document.getElementById('music-input');
@@ -290,17 +485,38 @@
     const addShotBtn = document.getElementById('add-shot-btn');
     const addShotBottomBtn = document.getElementById('add-shot-bottom-btn');
     const resetBtn = document.getElementById('reset-btn');
+    const tsWarningEl = document.getElementById('ts-warning');
+    const tsWarningTextEl = document.getElementById('ts-warning-text');
+    const chipsListEl = document.getElementById('chips-list');
+    const langBtn = document.getElementById('lang-btn');
+    const langMenu = document.getElementById('lang-menu');
 
-    // Helper: Format seconds float into MM:SS.sss timestamp string
+    let copyResetTimer = null;
+
+    // ---------------------------------------------------------------------
+    // Helpers
+    // ---------------------------------------------------------------------
+    const TIMESTAMP_RE = /^\d{2}:[0-5]\d\.\d{3}$/;
+
+    function escapeHtml(str) {
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    // Format seconds float into MM:SS.mmm timestamp string
     function formatTimestamp(totalSeconds) {
-      const mins = Math.floor(totalSeconds / 60);
-      const secs = totalSeconds % 60;
+      const totalMs = Math.round(totalSeconds * 1000);
+      const mins = Math.floor(totalMs / 60000);
+      const secs = (totalMs % 60000) / 1000;
       const minsStr = String(mins).padStart(2, '0');
       const secsStr = secs.toFixed(3).padStart(6, '0');
       return `${minsStr}:${secsStr}`;
     }
 
-    // Helper: Parse MM:SS.sss into total seconds
+    // Parse MM:SS.mmm into total seconds
     function parseTimestamp(tsString) {
       try {
         const parts = tsString.trim().split(':');
@@ -315,12 +531,53 @@
       return 0;
     }
 
+    function isValidTimestamp(tsString) {
+      return TIMESTAMP_RE.test(tsString.trim());
+    }
+
+    // Analyse every shot: output numbering (empty shots are skipped and the
+    // rest are renumbered) and timestamp errors.
+    //  - Format is checked for every shot.
+    //  - Ordering is checked between consecutive exported (non-empty) shots.
+    function analyzeShots() {
+      let outNum = 0;
+      let prev = null;
+      return state.shots.map(shot => {
+        const text = shot.description.trim();
+        const ts = shot.timestamp.trim();
+        const info = { outNum: null, error: null };
+
+        if (!isValidTimestamp(ts)) {
+          info.error = { type: 'invalid' };
+        }
+
+        if (text.length === 0) return info;
+
+        outNum += 1;
+        info.outNum = outNum;
+
+        if (!info.error) {
+          const secs = parseTimestamp(ts);
+          if (prev && secs <= prev.secs) {
+            info.error = { type: 'order', prevNum: prev.outNum, prevTs: prev.ts };
+          }
+          prev = { secs, outNum, ts };
+        }
+        return info;
+      });
+    }
+
+    function errorMessage(error) {
+      if (!error) return '';
+      if (error.type === 'invalid') return t('tsInvalid');
+      return t('tsOrder', { prev: `[Shot ${error.prevNum}]`, ts: error.prevTs });
+    }
+
     // Adjust timestamp in milliseconds
     function adjustShotTime(index, deltaMs) {
       const shot = state.shots[index];
       const currentSecs = parseTimestamp(shot.timestamp);
-      const deltaSecs = deltaMs / 1000;
-      const newSecs = Math.max(0, currentSecs + deltaSecs);
+      const newSecs = Math.max(0, currentSecs + deltaMs / 1000);
       shot.timestamp = formatTimestamp(newSecs);
       render();
     }
@@ -336,68 +593,102 @@
       render();
     }
 
-    // Render Function
+    // ---------------------------------------------------------------------
+    // Rendering
+    // ---------------------------------------------------------------------
+    const TS_BOX_BASE = 'ts-box inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 font-mono text-xs sm:text-sm transition-colors';
+    const TS_BOX_OK = 'bg-slate-950 border-slate-700/80 focus-within:border-indigo-500';
+    const TS_BOX_ERR = 'bg-rose-950/40 border-rose-500 ring-1 ring-rose-500/60';
+
+    function adjustButton(index, delta) {
+      const positive = delta > 0;
+      const color = positive
+        ? 'hover:bg-emerald-950/80 text-emerald-300 hover:border-emerald-500/60'
+        : 'hover:bg-rose-950/80 text-rose-300 hover:border-rose-500/60';
+      const title = positive ? t('adjustPlus', { n: delta }) : t('adjustMinus', { n: Math.abs(delta) });
+      const label = `${positive ? '+' : '-'}${Math.abs(delta)}ms`;
+      return `<button data-index="${index}" data-delta="${delta}" title="${escapeHtml(title)}" class="time-adjust-btn px-2 py-1 text-[11px] sm:text-xs font-mono font-semibold bg-slate-800/80 border border-slate-700/60 ${color} rounded transition-all active:scale-95">${label}</button>`;
+    }
+
     function render() {
       // 1. Render Shots Cards
       shotsListEl.innerHTML = '';
       state.shots.forEach((shot, index) => {
         const card = document.createElement('div');
-        card.className = `glass-panel rounded-2xl p-5 border transition-all duration-200 ${
-          state.activeShotIndex === index 
-            ? 'border-indigo-500/80 bg-slate-900/90 shadow-md shadow-indigo-500/10' 
+        card.dataset.index = index;
+        card.className = `shot-card glass-panel rounded-2xl p-5 border transition-all duration-200 ${
+          state.activeShotIndex === index
+            ? 'border-indigo-500/80 bg-slate-900/90 shadow-md shadow-indigo-500/10'
             : 'border-slate-800 hover:border-slate-700'
         }`;
 
         card.innerHTML = `
-          <div class="flex flex-wrap items-center justify-between gap-3 pb-3.5 mb-3.5 border-b border-slate-800/80">
-            <!-- Left: Shot Tag, Timestamp Input, and Fine-tune Buttons -->
-            <div class="flex flex-wrap items-center gap-2 sm:gap-2.5">
-              <span class="px-2.5 py-1 rounded-lg bg-indigo-500/10 border border-indigo-500/30 text-indigo-300 font-mono text-xs sm:text-sm font-bold">
-                [Shot ${index + 1}]
-              </span>
+          <div class="pb-3.5 mb-3.5 border-b border-slate-800/80">
+            <div class="flex flex-wrap items-center justify-between gap-3">
+              <!-- Left: Shot Tag, Timestamp Input, and Fine-tune Buttons -->
+              <div class="flex flex-wrap items-center gap-2 sm:gap-2.5">
+                <span class="shot-label px-2.5 py-1 rounded-lg border font-mono text-xs sm:text-sm font-bold"></span>
 
-              <div class="relative flex items-center">
-                <span class="absolute left-2.5 text-slate-500 font-mono text-xs sm:text-sm select-none pointer-events-none">At</span>
-                <input type="text" data-index="${index}" data-field="timestamp" value="${shot.timestamp}" 
-                  class="shot-input bg-slate-950 border border-slate-700/80 focus:border-indigo-500 rounded-lg pl-8 pr-2 py-1.5 font-mono text-xs sm:text-sm text-indigo-200 w-44 focus:outline-none">
+                <label class="${TS_BOX_BASE} ${TS_BOX_OK}">
+                  <span class="text-slate-500 select-none">At</span>
+                  <input type="text" data-index="${index}" data-field="timestamp" value="${escapeHtml(shot.timestamp)}"
+                    size="9" maxlength="9" spellcheck="false" autocomplete="off" inputmode="decimal"
+                    class="shot-input ts-input bg-transparent p-0 border-0 font-mono text-xs sm:text-sm text-indigo-200 focus:outline-none focus:ring-0">
+                </label>
+
+                <!-- Timestamp Fine-tune Buttons (+/- 100ms, +/- 500ms) -->
+                <div class="flex items-center gap-1 bg-slate-950/80 p-1 rounded-lg border border-slate-800">
+                  ${adjustButton(index, -500)}
+                  ${adjustButton(index, -100)}
+                  ${adjustButton(index, 100)}
+                  ${adjustButton(index, 500)}
+                </div>
               </div>
 
-              <!-- Timestamp Fine-tune Buttons (+/- 100ms, +/- 500ms) -->
-              <div class="flex items-center gap-1 bg-slate-950/80 p-1 rounded-lg border border-slate-800">
-                <button data-index="${index}" data-delta="-500" class="time-adjust-btn px-2 py-1 text-[11px] sm:text-xs font-mono font-semibold bg-slate-800/80 hover:bg-rose-950/80 text-rose-300 border border-slate-700/60 hover:border-rose-500/60 rounded transition-all active:scale-95" title="減少 500 毫秒">-500ms</button>
-                <button data-index="${index}" data-delta="-100" class="time-adjust-btn px-2 py-1 text-[11px] sm:text-xs font-mono font-semibold bg-slate-800/80 hover:bg-rose-950/80 text-rose-300 border border-slate-700/60 hover:border-rose-500/60 rounded transition-all active:scale-95" title="減少 100 毫秒">-100ms</button>
-                <button data-index="${index}" data-delta="100" class="time-adjust-btn px-2 py-1 text-[11px] sm:text-xs font-mono font-semibold bg-slate-800/80 hover:bg-emerald-950/80 text-emerald-300 border border-slate-700/60 hover:border-emerald-500/60 rounded transition-all active:scale-95" title="增加 100 毫秒">+100ms</button>
-                <button data-index="${index}" data-delta="500" class="time-adjust-btn px-2 py-1 text-[11px] sm:text-xs font-mono font-semibold bg-slate-800/80 hover:bg-emerald-950/80 text-emerald-300 border border-slate-700/60 hover:border-emerald-500/60 rounded transition-all active:scale-95" title="增加 500 毫秒">+500ms</button>
-              </div>
-            </div>
-
-            <!-- Right: Move Up/Down, Duplicate, Delete -->
-            <div class="flex items-center gap-1">
-              <button data-index="${index}" data-dir="-1" class="move-shot-btn p-1.5 text-slate-400 hover:text-indigo-300 hover:bg-slate-800 rounded-lg transition-all ${index === 0 ? 'opacity-30 cursor-not-allowed' : ''}" title="向上移">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"></path></svg>
-              </button>
-              <button data-index="${index}" data-dir="1" class="move-shot-btn p-1.5 text-slate-400 hover:text-indigo-300 hover:bg-slate-800 rounded-lg transition-all ${index === state.shots.length - 1 ? 'opacity-30 cursor-not-allowed' : ''}" title="向下移">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-              </button>
-              <button data-index="${index}" class="duplicate-shot-btn p-1.5 text-slate-400 hover:text-indigo-300 hover:bg-slate-800 rounded-lg transition-all" title="複製 Shot">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
-                </svg>
-              </button>
-              ${state.shots.length > 1 ? `
-                <button data-index="${index}" class="delete-shot-btn p-1.5 text-slate-400 hover:text-rose-400 hover:bg-slate-800 rounded-lg transition-all" title="刪除 Shot">
+              <!-- Right: Move Up/Down, Duplicate, Delete -->
+              <div class="flex items-center gap-1">
+                <button data-index="${index}" data-dir="-1" class="move-shot-btn p-1.5 text-slate-400 hover:text-indigo-300 hover:bg-slate-800 rounded-lg transition-all ${index === 0 ? 'opacity-30 cursor-not-allowed' : ''}" title="${escapeHtml(t('moveUp'))}">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"></path></svg>
+                </button>
+                <button data-index="${index}" data-dir="1" class="move-shot-btn p-1.5 text-slate-400 hover:text-indigo-300 hover:bg-slate-800 rounded-lg transition-all ${index === state.shots.length - 1 ? 'opacity-30 cursor-not-allowed' : ''}" title="${escapeHtml(t('moveDown'))}">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                </button>
+                <button data-index="${index}" class="duplicate-shot-btn p-1.5 text-slate-400 hover:text-indigo-300 hover:bg-slate-800 rounded-lg transition-all" title="${escapeHtml(t('duplicate'))}">
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
                   </svg>
                 </button>
-              ` : ''}
+                ${state.shots.length > 1 ? `
+                  <button data-index="${index}" class="delete-shot-btn p-1.5 text-slate-400 hover:text-rose-400 hover:bg-slate-800 rounded-lg transition-all" title="${escapeHtml(t('delete'))}">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                    </svg>
+                  </button>
+                ` : ''}
+              </div>
             </div>
+
+            <!-- Empty shot note -->
+            <p class="shot-skip hidden mt-2.5 text-xs sm:text-sm font-medium text-slate-400 flex items-center gap-1.5">
+              <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+              </svg>
+              <span>${escapeHtml(t('skipped'))}</span>
+            </p>
+
+            <!-- Timestamp error message -->
+            <p class="ts-error hidden mt-2.5 text-xs sm:text-sm font-semibold text-rose-300 flex items-center gap-1.5">
+              <svg class="w-4 h-4 shrink-0 text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"></path>
+              </svg>
+              <span class="ts-error-text"></span>
+            </p>
           </div>
 
           <div>
             <textarea data-index="${index}" data-field="description" rows="3" style="min-height: 110px;"
-              placeholder="輸入畫面動態、肢體動作、運鏡或表情描述..."
-              class="shot-input w-full bg-slate-950/80 border border-slate-800 focus:border-indigo-500/80 rounded-xl p-3.5 text-xs sm:text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-indigo-500/50 resize-y font-sans leading-relaxed">${shot.description}</textarea>
+              placeholder="${escapeHtml(t('placeholder'))}"
+              class="shot-input w-full bg-slate-950/80 border border-slate-800 focus:border-indigo-500/80 rounded-xl p-3.5 text-xs sm:text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-indigo-500/50 resize-y font-sans leading-relaxed">${escapeHtml(shot.description)}</textarea>
           </div>
         `;
 
@@ -407,54 +698,123 @@
       // Update Shot Counter
       shotCountBadgeEl.textContent = state.shots.length;
 
-      // 2. Generate Live Output String
-      const fullPrompt = generateFormattedOutput();
-      outputPreviewEl.textContent = fullPrompt;
-      charCountEl.textContent = `${fullPrompt.length} 字元`;
-
       // Attach Event Listeners to newly rendered inputs
       attachShotEvents();
+
+      // 2. Labels, validation and live output
+      refreshDerived();
     }
 
-    // Build Formatted Output String strictly matching requested structure
-    function generateFormattedOutput() {
-      let descString = "";
+    // Update everything that depends on shot content without rebuilding the
+    // cards (keeps focus / caret while typing).
+    function refreshDerived() {
+      const analysis = analyzeShots();
+      const cards = shotsListEl.querySelectorAll('.shot-card');
+      let errorCount = 0;
+      let exported = 0;
 
-      state.shots.forEach((shot, index) => {
+      cards.forEach((card, index) => {
+        const info = analysis[index];
+        if (!info) return;
+
+        const label = card.querySelector('.shot-label');
+        const skip = card.querySelector('.shot-skip');
+        const tsBox = card.querySelector('.ts-box');
+        const tsInput = card.querySelector('.ts-input');
+        const errEl = card.querySelector('.ts-error');
+        const errText = card.querySelector('.ts-error-text');
+
+        if (info.outNum) {
+          exported += 1;
+          label.textContent = `[Shot ${info.outNum}]`;
+          label.className = 'shot-label px-2.5 py-1 rounded-lg border font-mono text-xs sm:text-sm font-bold bg-indigo-500/10 border-indigo-500/30 text-indigo-300';
+          skip.classList.add('hidden');
+        } else {
+          label.textContent = '[Shot –]';
+          label.className = 'shot-label px-2.5 py-1 rounded-lg border font-mono text-xs sm:text-sm font-bold bg-slate-800/60 border-slate-700/60 text-slate-400';
+          skip.classList.remove('hidden');
+        }
+
+        if (info.error) {
+          errorCount += 1;
+          tsBox.className = `${TS_BOX_BASE} ${TS_BOX_ERR}`;
+          tsInput.classList.replace('text-indigo-200', 'text-rose-200');
+          tsInput.setAttribute('aria-invalid', 'true');
+          errText.textContent = errorMessage(info.error);
+          errEl.classList.remove('hidden');
+        } else {
+          tsBox.className = `${TS_BOX_BASE} ${TS_BOX_OK}`;
+          tsInput.classList.replace('text-rose-200', 'text-indigo-200');
+          tsInput.removeAttribute('aria-invalid');
+          errEl.classList.add('hidden');
+        }
+      });
+
+      exportedCountEl.textContent = exported === state.shots.length ? '' : t('exportedCount', { n: exported });
+
+      if (errorCount > 0) {
+        tsWarningTextEl.textContent = t('tsSummary', { n: errorCount });
+        tsWarningEl.classList.remove('hidden');
+      } else {
+        tsWarningEl.classList.add('hidden');
+      }
+
+      const fullPrompt = generateFormattedOutput();
+      outputPreviewEl.textContent = fullPrompt;
+      charCountEl.textContent = t('chars', { n: fullPrompt.length });
+    }
+
+    // Build Formatted Output String strictly matching requested structure.
+    // Empty shots are skipped and the remaining shots are renumbered.
+    function generateFormattedOutput() {
+      const parts = [];
+
+      state.shots.forEach(shot => {
         let text = shot.description.trim();
+        if (text.length === 0) return;
 
         // Apply auto-period rule if enabled
-        if (state.autoPeriod && text.length > 0 && !text.endsWith('.')) {
+        if (state.autoPeriod && !text.endsWith('.')) {
           text += '.';
         }
 
         // Format: [Shot X] At <timestamp>, <description>
-        if (index > 0) descString += ' ';
-        descString += `[Shot ${index + 1}] At ${shot.timestamp.trim()}, ${text}`;
+        parts.push(`[Shot ${parts.length + 1}] At ${shot.timestamp.trim()}, ${text}`);
       });
 
+      const descString = parts.join(' ');
       const soundscape = state.overallSoundscape.trim() || 'N/A';
       const music = state.nonDiegeticMusic.trim() || 'N/A';
 
       return `integrated_multimodal_description: ${descString}\n\noverall_soundscape: ${soundscape}\nnon_diegetic_music: ${music}`;
     }
 
+    function setActiveShot(index) {
+      if (state.activeShotIndex === index) return;
+      state.activeShotIndex = index;
+      shotsListEl.querySelectorAll('.shot-card').forEach((card, i) => {
+        const active = i === index;
+        card.classList.toggle('border-indigo-500/80', active);
+        card.classList.toggle('bg-slate-900/90', active);
+        card.classList.toggle('shadow-md', active);
+        card.classList.toggle('shadow-indigo-500/10', active);
+        card.classList.toggle('border-slate-800', !active);
+        card.classList.toggle('hover:border-slate-700', !active);
+      });
+    }
+
     // Attach Event Listeners to Input Fields inside Dynamic Cards
     function attachShotEvents() {
       document.querySelectorAll('.shot-input').forEach(input => {
         input.addEventListener('focus', (e) => {
-          state.activeShotIndex = parseInt(e.target.dataset.index);
+          setActiveShot(parseInt(e.target.dataset.index));
         });
 
         input.addEventListener('input', (e) => {
           const idx = parseInt(e.target.dataset.index);
           const field = e.target.dataset.field;
           state.shots[idx][field] = e.target.value;
-          
-          // Re-generate output live
-          const fullPrompt = generateFormattedOutput();
-          outputPreviewEl.textContent = fullPrompt;
-          charCountEl.textContent = `${fullPrompt.length} 字元`;
+          refreshDerived();
         });
       });
 
@@ -537,7 +897,7 @@
     // Copy to Clipboard Handler
     function copyPromptToClipboard() {
       const textToCopy = generateFormattedOutput();
-      
+
       const textarea = document.createElement('textarea');
       textarea.value = textToCopy;
       textarea.style.position = 'fixed';
@@ -547,21 +907,23 @@
 
       try {
         document.execCommand('copy');
-        showToast('已複製完整的 Prompt 至剪貼簿！');
-        
+        showToast(t('toastCopied'));
+
         // Visual feedback on button
-        copyText.textContent = '已複製！';
+        copyText.textContent = t('copied');
         copyBtn.classList.remove('from-indigo-600', 'to-purple-600');
         copyBtn.classList.add('bg-emerald-600');
 
-        setTimeout(() => {
-          copyText.textContent = '複製 Prompt';
+        clearTimeout(copyResetTimer);
+        copyResetTimer = setTimeout(() => {
+          copyResetTimer = null;
+          copyText.textContent = t('copy');
           copyBtn.classList.remove('bg-emerald-600');
           copyBtn.classList.add('from-indigo-600', 'to-purple-600');
         }, 2000);
 
       } catch (err) {
-        showToast('複製失敗，請手動複製。');
+        showToast(t('toastCopyFail'));
         console.error('Copy failed', err);
       } finally {
         document.body.removeChild(textarea);
@@ -569,6 +931,7 @@
     }
 
     // Toast Notification Display
+    let toastTimer = null;
     function showToast(message) {
       const toast = document.getElementById('toast');
       const toastMsg = document.getElementById('toast-msg');
@@ -577,13 +940,96 @@
       toast.classList.remove('translate-y-20', 'opacity-0');
       toast.classList.add('translate-y-0', 'opacity-100');
 
-      setTimeout(() => {
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => {
         toast.classList.remove('translate-y-0', 'opacity-100');
         toast.classList.add('translate-y-20', 'opacity-0');
       }, 2500);
     }
 
+    // ---------------------------------------------------------------------
+    // Language
+    // ---------------------------------------------------------------------
+    function renderTimeStepOptions() {
+      timeStepSelect.innerHTML = TIME_STEPS.map(step => {
+        const selected = step === state.timeStepSec ? ' selected' : '';
+        return `<option value="${step}"${selected}>${step.toFixed(1)} ${escapeHtml(t('sec'))} (+${formatTimestamp(step)})</option>`;
+      }).join('');
+    }
+
+    function renderChips() {
+      chipsListEl.innerHTML = PROMPT_CHIPS.map(chip => {
+        const tip = currentLang === 'zh-Hant' ? chip.zh : currentLang === 'ja' ? chip.ja : '';
+        const titleAttr = tip ? ` title="${escapeHtml(tip)}"` : '';
+        return `<button type="button" class="prompt-chip px-3 py-1.5 text-xs sm:text-sm font-medium bg-slate-800/80 hover:bg-indigo-600/30 hover:border-indigo-500/50 text-slate-200 hover:text-indigo-100 border border-slate-700/60 rounded-lg transition-all"${titleAttr}>${escapeHtml(chip.text)}</button>`;
+      }).join('');
+    }
+
+    function applyLanguage() {
+      document.documentElement.lang = currentLang;
+      document.title = t('docTitle');
+
+      document.querySelectorAll('[data-i18n]').forEach(el => {
+        el.textContent = t(el.dataset.i18n);
+      });
+      document.querySelectorAll('[data-i18n-title]').forEach(el => {
+        el.title = t(el.dataset.i18nTitle);
+      });
+      document.querySelectorAll('[data-i18n-aria]').forEach(el => {
+        el.setAttribute('aria-label', t(el.dataset.i18nAria));
+      });
+
+      if (!copyResetTimer) copyText.textContent = t('copy');
+
+      document.querySelectorAll('.lang-option').forEach(opt => {
+        const active = opt.dataset.lang === currentLang;
+        opt.setAttribute('aria-checked', String(active));
+        opt.className = `lang-option w-full text-left px-3 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all ${
+          active ? 'bg-indigo-600/30 text-indigo-100' : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+        }`;
+      });
+
+      renderTimeStepOptions();
+      renderChips();
+      render();
+    }
+
+    function setLanguage(lang) {
+      if (!SUPPORTED_LANGS.includes(lang)) return;
+      currentLang = lang;
+      saveLang(lang);
+      applyLanguage();
+    }
+
+    function toggleLangMenu(open) {
+      const show = open ?? langMenu.classList.contains('hidden');
+      langMenu.classList.toggle('hidden', !show);
+      langBtn.setAttribute('aria-expanded', String(show));
+    }
+
+    langBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      toggleLangMenu();
+    });
+
+    langMenu.addEventListener('click', (e) => {
+      const opt = e.target.closest('.lang-option');
+      if (!opt) return;
+      setLanguage(opt.dataset.lang);
+      toggleLangMenu(false);
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('#lang-wrap')) toggleLangMenu(false);
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') toggleLangMenu(false);
+    });
+
+    // ---------------------------------------------------------------------
     // Global Event Listeners
+    // ---------------------------------------------------------------------
     addShotBtn.addEventListener('click', addShot);
     addShotBottomBtn.addEventListener('click', addShot);
 
@@ -595,17 +1041,17 @@
       musicInput.value = 'N/A';
       state.activeShotIndex = 0;
       render();
-      showToast('已重置為預設範例！');
+      showToast(t('toastReset'));
     });
 
     soundscapeInput.addEventListener('input', (e) => {
       state.overallSoundscape = e.target.value;
-      render();
+      refreshDerived();
     });
 
     musicInput.addEventListener('input', (e) => {
       state.nonDiegeticMusic = e.target.value;
-      render();
+      refreshDerived();
     });
 
     timeStepSelect.addEventListener('change', (e) => {
@@ -614,30 +1060,30 @@
 
     autoPeriodCheck.addEventListener('change', (e) => {
       state.autoPeriod = e.target.checked;
-      render();
+      refreshDerived();
     });
 
     copyBtn.addEventListener('click', copyPromptToClipboard);
 
-    // Prompt Chips Click Listener
-    document.querySelectorAll('.prompt-chip').forEach(chip => {
-      chip.addEventListener('click', (e) => {
-        const textToAppend = e.target.textContent.trim();
-        const activeShot = state.shots[state.activeShotIndex];
-        
-        if (activeShot) {
-          if (activeShot.description.length > 0 && !activeShot.description.endsWith(' ')) {
-            activeShot.description += ', ';
-          }
-          activeShot.description += textToAppend;
-          render();
-          showToast(`已新增提示詞至 [Shot ${state.activeShotIndex + 1}]`);
+    // Prompt Chips Click Listener (delegated, chips are re-rendered on language change)
+    chipsListEl.addEventListener('click', (e) => {
+      const chip = e.target.closest('.prompt-chip');
+      if (!chip) return;
+      const textToAppend = chip.textContent.trim();
+      const activeShot = state.shots[state.activeShotIndex];
+
+      if (activeShot) {
+        if (activeShot.description.length > 0 && !activeShot.description.endsWith(' ')) {
+          activeShot.description += ', ';
         }
-      });
+        activeShot.description += textToAppend;
+        render();
+        showToast(t('toastChip'));
+      }
     });
 
     // Initial Launch Render
-    render();
+    applyLanguage();
   </script>
 </body>
 </html>
