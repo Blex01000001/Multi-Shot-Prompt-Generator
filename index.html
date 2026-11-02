@@ -3,9 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>MiniMax Video Multi-Shot Prompt Generator</title>
+  <title>MiniMax H3 Multi-Shot Prompt Generator</title>
+  <meta name="theme-color" content="#0f172a">
+  <!-- Favicon (inline SVG, same gradient camera icon as the header) -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='1' x2='1' y2='0'%3E%3Cstop offset='0' stop-color='%234f46e5'/%3E%3Cstop offset='.5' stop-color='%239333ea'/%3E%3Cstop offset='1' stop-color='%23ec4899'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='64' height='64' rx='14' fill='url(%23g)'/%3E%3Cpath transform='translate(8 8) scale(2)' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' d='M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z'/%3E%3C/svg%3E">
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
+  <!-- SortableJS: drag-and-drop reordering of shot cards (desktop + touch) -->
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
   <!-- Google Fonts: Inter -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -16,7 +21,7 @@
       theme: {
         extend: {
           fontFamily: {
-            sans: ['Inter', 'sans-serif'],
+            sans: ['Inter', '"Noto Sans TC"', '"Noto Sans JP"', 'sans-serif'],
             mono: ['JetBrains Mono', 'monospace'],
           },
           colors: {
@@ -57,38 +62,67 @@
     .glow-purple {
       box-shadow: 0 0 25px -5px rgba(99, 102, 241, 0.25);
     }
+    /* Timestamp input: exactly as wide as "00:00.000" in the monospace font */
+    .ts-input {
+      width: 9ch;
+    }
+    /* SortableJS drag states */
+    .sortable-ghost {
+      opacity: 0.35;
+    }
+    .sortable-chosen .drag-handle {
+      color: #a5b4fc;
+    }
+    .drag-handle {
+      touch-action: none;
+    }
   </style>
 </head>
 <body class="bg-slate-950 text-slate-100 font-sans min-h-screen antialiased flex flex-col selection:bg-indigo-500 selection:text-white text-[16px] sm:text-[17px]">
 
   <!-- Header Bar -->
-  <header class="border-b border-slate-800/80 bg-slate-900/60 backdrop-blur-md sticky top-0 z-40">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
-      <div class="flex items-center gap-3.5">
+  <header class="border-b border-slate-800/80 bg-slate-900/60 backdrop-blur-md relative sm:sticky top-0 z-40">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 min-h-16 py-2.5 sm:py-0 sm:h-16 flex items-center justify-between gap-3">
+      <div class="flex items-center gap-3.5 min-w-0">
         <div class="w-11 h-11 rounded-xl bg-gradient-to-tr from-indigo-600 via-purple-600 to-pink-500 flex items-center justify-center shadow-lg shadow-indigo-500/30 shrink-0">
           <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
           </svg>
         </div>
-        <div>
-          <h1 class="font-extrabold text-xl sm:text-2xl leading-tight tracking-tight bg-gradient-to-r from-white via-slate-200 to-indigo-200 bg-clip-text text-transparent">
-            MiniMax H3 多鏡頭提示詞產生器
+        <div class="min-w-0">
+          <h1 data-i18n="title" class="font-extrabold text-xl sm:text-2xl leading-tight tracking-tight bg-gradient-to-r from-white via-slate-200 to-indigo-200 bg-clip-text text-transparent">
+            MiniMax H3 Multi-Shot Prompt Generator
           </h1>
-          <p class="text-xs sm:text-sm text-slate-400 font-medium">結構化 AI 影片 Prompt 與多鏡頭分鏡腳本工具</p>
+          <p data-i18n="subtitle" class="text-xs sm:text-sm text-slate-400 font-medium">Structured AI video prompts &amp; multi-shot storyboard tool</p>
         </div>
       </div>
 
       <!-- Quick Actions -->
-      <div class="flex items-center gap-3">
-        <button id="reset-btn" class="px-3.5 py-2 text-xs sm:text-sm font-semibold text-slate-300 hover:text-white bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/60 rounded-xl transition-all flex items-center gap-2">
+      <div class="flex items-center gap-2 sm:gap-3 shrink-0">
+        <button id="reset-btn" data-i18n-title="reset" class="px-3 sm:px-3.5 py-2 text-xs sm:text-sm font-semibold text-slate-300 hover:text-white bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/60 rounded-xl transition-all flex items-center gap-2">
           <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
           </svg>
-          重置範例
+          <span data-i18n="reset" class="hidden sm:inline">Reset</span>
         </button>
-        <span class="inline-flex items-center px-3 py-1.5 rounded-full text-xs sm:text-sm font-semibold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
-          支援 MiniMax H3 規範
+        <span data-i18n="badge" class="hidden md:inline-flex items-center px-3 py-1.5 rounded-full text-xs sm:text-sm font-semibold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+          MiniMax H3 compatible
         </span>
+
+        <!-- Language Switcher -->
+        <div class="relative" id="lang-wrap">
+          <button id="lang-btn" type="button" aria-haspopup="menu" aria-expanded="false" data-i18n-title="language" data-i18n-aria="language"
+            class="p-2 rounded-xl text-slate-300 hover:text-white bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/60 transition-all">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"></path>
+            </svg>
+          </button>
+          <div id="lang-menu" role="menu" class="hidden absolute right-0 mt-2 w-44 p-1.5 rounded-xl bg-slate-900/95 backdrop-blur-md border border-slate-700/80 shadow-2xl shadow-black/50 z-50">
+            <button type="button" role="menuitemradio" data-lang="en" class="lang-option w-full text-left px-3 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all">English</button>
+            <button type="button" role="menuitemradio" data-lang="zh-Hant" class="lang-option w-full text-left px-3 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all">繁體中文</button>
+            <button type="button" role="menuitemradio" data-lang="ja" class="lang-option w-full text-left px-3 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all">日本語</button>
+          </div>
+        </div>
       </div>
     </div>
   </header>
@@ -107,19 +141,22 @@
               <svg class="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path>
               </svg>
-              鏡頭序列設定
+              <span data-i18n="seqTitle">Shot Sequence</span>
             </h2>
-            <p class="text-xs sm:text-sm text-slate-400 mt-1">管理多鏡頭數量與時間戳記遞增間隔</p>
+            <p data-i18n="seqDesc" class="text-xs sm:text-sm text-slate-400 mt-1">Manage the number of shots and the timestamp step</p>
           </div>
 
           <!-- Total Shots Badge & Quick Add -->
           <div class="flex items-center gap-4">
-            <span class="text-xs sm:text-sm font-semibold text-slate-300">總鏡頭數: <strong id="shot-count-badge" class="text-indigo-400 font-bold text-base sm:text-lg">2</strong></span>
+            <span class="text-xs sm:text-sm font-semibold text-slate-300">
+              <span data-i18n="totalShots">Total shots</span>: <strong id="shot-count-badge" class="text-indigo-400 font-bold text-base sm:text-lg">2</strong>
+              <span id="exported-count" class="text-slate-400 font-medium"></span>
+            </span>
             <button id="add-shot-btn" class="px-4 py-2.5 text-xs sm:text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-500 active:scale-95 rounded-xl shadow-md shadow-indigo-600/30 transition-all flex items-center gap-2">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
               </svg>
-              新增 Shot
+              <span data-i18n="addShot">Add Shot</span>
             </button>
           </div>
         </div>
@@ -127,22 +164,16 @@
         <!-- Quick Settings Grid -->
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-5 mt-5">
           <div>
-            <label class="block text-xs sm:text-sm font-semibold text-slate-300 mb-1.5">新增鏡頭預設時間間隔</label>
-            <select id="time-step-select" class="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-3.5 py-2 text-xs sm:text-sm font-medium text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-              <option value="0.8">0.8 秒 (+00:00.800)</option>
-              <option value="1" selected>1.0 秒 (+00:01.000)</option>
-              <option value="1.5">1.5 秒 (+00:01.500)</option>
-              <option value="2">2.0 秒 (+00:02.000)</option>
-              <option value="3">3.0 秒 (+00:03.000)</option>
-            </select>
+            <label for="time-step-select" data-i18n="timeStepLabel" class="block text-xs sm:text-sm font-semibold text-slate-300 mb-1.5">Default time step for new shots</label>
+            <select id="time-step-select" class="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-3.5 py-2 text-xs sm:text-sm font-medium text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"></select>
           </div>
 
           <div>
-            <label class="block text-xs sm:text-sm font-semibold text-slate-300 mb-1.5">自動格式優化</label>
+            <span data-i18n="autoFormat" class="block text-xs sm:text-sm font-semibold text-slate-300 mb-1.5">Auto formatting</span>
             <div class="flex items-center gap-2.5 pt-1.5">
               <input type="checkbox" id="auto-period-check" checked class="w-4 h-4 rounded bg-slate-900 border-slate-700 text-indigo-600 focus:ring-indigo-500 focus:ring-offset-slate-900">
-              <label for="auto-period-check" class="text-xs sm:text-sm text-slate-300 cursor-pointer select-none font-medium">
-                自動在每個 Shot 結尾補上句號 (`.`)
+              <label for="auto-period-check" data-i18n="autoPeriodLabel" class="text-xs sm:text-sm text-slate-300 cursor-pointer select-none font-medium">
+                Append a period (.) to the end of each shot
               </label>
             </div>
           </div>
@@ -159,7 +190,7 @@
         <svg class="w-4 h-4 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
         </svg>
-        新增下一個 Shot 到序列
+        <span data-i18n="addShotBottom">Add the next shot to the sequence</span>
       </button>
 
       <!-- Audio / Soundscape Settings Card -->
@@ -168,16 +199,16 @@
           <svg class="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12 0c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"></path>
           </svg>
-          聲音與音樂設定 (Soundscape & Music)
+          <span data-i18n="audioTitle">Soundscape &amp; Music</span>
         </h2>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
           <div>
-            <label class="block text-xs sm:text-sm font-semibold text-slate-300 mb-1.5">overall_soundscape (環境音效)</label>
+            <label for="soundscape-input" class="block text-xs sm:text-sm font-semibold text-slate-300 mb-1.5">overall_soundscape <span data-i18n="soundscapeHint">(ambient sound)</span></label>
             <input type="text" id="soundscape-input" value="N/A" class="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-purple-500 font-mono">
           </div>
           <div>
-            <label class="block text-xs sm:text-sm font-semibold text-slate-300 mb-1.5">non_diegetic_music (背景音樂)</label>
+            <label for="music-input" class="block text-xs sm:text-sm font-semibold text-slate-300 mb-1.5">non_diegetic_music <span data-i18n="musicHint">(background music)</span></label>
             <input type="text" id="music-input" value="N/A" class="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-purple-500 font-mono">
           </div>
         </div>
@@ -186,24 +217,32 @@
     </section>
 
     <!-- Right Column: Live Formatted Output & Preset Tools (5 Cols) -->
-    <section class="lg:col-span-5 flex flex-col gap-5 lg:sticky lg:top-20">
+    <section class="lg:col-span-5 flex flex-col gap-5 lg:sticky lg:top-20 lg:self-start">
 
       <!-- Output Preview Card (Compact) -->
       <div class="glass-panel rounded-2xl p-4 sm:p-5 border border-slate-800 flex flex-col glow-purple">
         <!-- Preview Header -->
-        <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+        <div class="flex items-center justify-between gap-3 pb-3 border-b border-slate-800">
           <div class="flex items-center gap-2">
             <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
-            <h2 class="text-sm sm:text-base font-bold text-slate-100 uppercase tracking-wider">即時整合輸出 (Preview)</h2>
+            <h2 data-i18n="previewTitle" class="text-sm sm:text-base font-bold text-slate-100 uppercase tracking-wider">Live Output (Preview)</h2>
           </div>
 
           <!-- Copy Button -->
-          <button id="copy-btn" class="px-3.5 py-2 text-xs sm:text-sm font-bold text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 active:scale-95 rounded-xl shadow-md shadow-indigo-500/20 transition-all flex items-center gap-1.5">
+          <button id="copy-btn" class="px-3.5 py-2 text-xs sm:text-sm font-bold text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 active:scale-95 rounded-xl shadow-md shadow-indigo-500/20 transition-all flex items-center gap-1.5 shrink-0">
             <svg id="copy-icon" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path>
             </svg>
-            <span id="copy-text">複製 Prompt</span>
+            <span id="copy-text">Copy Prompt</span>
           </button>
+        </div>
+
+        <!-- Timestamp Issues Summary -->
+        <div id="ts-warning" class="hidden mt-3 px-3 py-2 rounded-xl bg-rose-950/50 border border-rose-500/40 text-rose-200 text-xs sm:text-sm font-semibold flex items-center gap-2">
+          <svg class="w-4 h-4 shrink-0 text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"></path>
+          </svg>
+          <span id="ts-warning-text"></span>
         </div>
 
         <!-- Preformatted Output Display -->
@@ -212,47 +251,457 @@
         </div>
 
         <!-- Copy Stats / Helper Note -->
-        <div class="mt-2.5 pt-2.5 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-400">
-          <span>可直接貼入 ComfyUI MiniMax H3 工作流</span>
-          <span id="char-count" class="font-mono text-slate-400 font-semibold">0 字元</span>
+        <div class="mt-2.5 pt-2.5 border-t border-slate-800/80 flex items-center justify-between gap-3 text-xs text-slate-400">
+          <span data-i18n="comfyNote">Paste directly into a ComfyUI MiniMax H3 workflow</span>
+          <span id="char-count" class="font-mono text-slate-400 font-semibold shrink-0">0</span>
         </div>
       </div>
 
       <!-- Quick Prompt Tags Library -->
       <div class="glass-panel rounded-2xl p-5 border border-slate-800">
-        <h3 class="text-xs sm:text-sm font-bold text-slate-200 uppercase tracking-wider mb-3 flex items-center justify-between">
-          <span>常用 AI 影片提示詞標籤</span>
-          <span class="text-xs text-slate-400 font-normal">點擊自動插入至當前 Shot</span>
-        </h3>
-        
-        <div class="flex flex-wrap gap-2 max-h-48 overflow-y-auto pr-1">
-          <button class="prompt-chip px-3 py-1.5 text-xs sm:text-sm font-medium bg-slate-800/80 hover:bg-indigo-600/30 hover:border-indigo-500/50 text-slate-200 hover:text-indigo-100 border border-slate-700/60 rounded-lg transition-all" title="傲嬌鼓嘴臉紅">pouting with flushed cheeks</button>
-          <button class="prompt-chip px-3 py-1.5 text-xs sm:text-sm font-medium bg-slate-800/80 hover:bg-indigo-600/30 hover:border-indigo-500/50 text-slate-200 hover:text-indigo-100 border border-slate-700/60 rounded-lg transition-all" title="轉頭回眸看">looking back over her shoulder</button>
-          <button class="prompt-chip px-3 py-1.5 text-xs sm:text-sm font-medium bg-slate-800/80 hover:bg-indigo-600/30 hover:border-indigo-500/50 text-slate-200 hover:text-indigo-100 border border-slate-700/60 rounded-lg transition-all" title="鏡頭緩慢推進">camera slowly pushes in</button>
-          <button class="prompt-chip px-3 py-1.5 text-xs sm:text-sm font-medium bg-slate-800/80 hover:bg-indigo-600/30 hover:border-indigo-500/50 text-slate-200 hover:text-indigo-100 border border-slate-700/60 rounded-lg transition-all" title="平滑環繞到身後">smoothly orbits around to her back</button>
-          <button class="prompt-chip px-3 py-1.5 text-xs sm:text-sm font-medium bg-slate-800/80 hover:bg-indigo-600/30 hover:border-indigo-500/50 text-slate-200 hover:text-indigo-100 border border-slate-700/60 rounded-lg transition-all" title="喘氣急促呼吸">panting and breathing rapidly</button>
-          <button class="prompt-chip px-3 py-1.5 text-xs sm:text-sm font-medium bg-slate-800/80 hover:bg-indigo-600/30 hover:border-indigo-500/50 text-slate-200 hover:text-indigo-100 border border-slate-700/60 rounded-lg transition-all" title="害羞閉單眼">winks shyly with one eye closed</button>
-          <button class="prompt-chip px-3 py-1.5 text-xs sm:text-sm font-medium bg-slate-800/80 hover:bg-indigo-600/30 hover:border-indigo-500/50 text-slate-200 hover:text-indigo-100 border border-slate-700/60 rounded-lg transition-all" title="黏稠透明液體緩慢滴落">viscous clear liquid slowly drips</button>
-          <button class="prompt-chip px-3 py-1.5 text-xs sm:text-sm font-medium bg-slate-800/80 hover:bg-indigo-600/30 hover:border-indigo-500/50 text-slate-200 hover:text-indigo-100 border border-slate-700/60 rounded-lg transition-all" title="拉成細絲狀">stretches into thin strands</button>
-          <button class="prompt-chip px-3 py-1.5 text-xs sm:text-sm font-medium bg-slate-800/80 hover:bg-indigo-600/30 hover:border-indigo-500/50 text-slate-200 hover:text-indigo-100 border border-slate-700/60 rounded-lg transition-all" title="仰角向上拍攝">low-angle shot looking up</button>
-          <button class="prompt-chip px-3 py-1.5 text-xs sm:text-sm font-medium bg-slate-800/80 hover:bg-indigo-600/30 hover:border-indigo-500/50 text-slate-200 hover:text-indigo-100 border border-slate-700/60 rounded-lg transition-all" title="拉起裙襬搖擺">lifting skirt and swaying back and forth</button>
+        <div class="flex items-center justify-between gap-3 mb-1">
+          <h3 data-i18n="tagsTitle" class="text-xs sm:text-sm font-bold text-slate-200 uppercase tracking-wider">Common AI Video Prompt Tags</h3>
+          <button id="manage-tags-btn" type="button" class="px-3 py-1.5 text-xs sm:text-sm font-semibold text-slate-300 hover:text-white bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/60 rounded-lg transition-all flex items-center gap-1.5 shrink-0">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+            </svg>
+            <span data-i18n="manageTags">Manage</span>
+          </button>
         </div>
+        <p data-i18n="tagsHint" class="text-xs text-slate-400 mb-3">Click to insert into the current shot</p>
+
+        <div class="relative mb-3">
+          <svg class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M11 18a7 7 0 100-14 7 7 0 000 14z"></path>
+          </svg>
+          <input id="tag-search" type="search" autocomplete="off" data-i18n-placeholder="searchTags"
+            class="w-full bg-slate-900 border border-slate-700/80 rounded-xl pl-9 pr-3 py-2 text-xs sm:text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+        </div>
+
+        <div id="chips-list" class="flex flex-wrap gap-2 max-h-48 overflow-y-auto pr-1"></div>
       </div>
 
     </section>
 
   </main>
 
+  <!-- Tag Manager Modal -->
+  <div id="tag-modal" class="hidden fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-6" role="dialog" aria-modal="true" aria-labelledby="tag-modal-title">
+    <div id="tag-modal-backdrop" class="absolute inset-0 bg-slate-950/80 backdrop-blur-sm"></div>
+    <div class="relative w-full sm:max-w-2xl max-h-[92vh] flex flex-col rounded-t-2xl sm:rounded-2xl bg-slate-900/95 border border-slate-700/80 shadow-2xl shadow-black/60 glow-purple">
+      <!-- Modal header -->
+      <div class="flex items-center justify-between gap-3 px-5 sm:px-6 py-4 border-b border-slate-800">
+        <h2 id="tag-modal-title" data-i18n="manageTitle" class="text-base sm:text-lg font-bold text-slate-100 uppercase tracking-wider">Manage Prompt Tags</h2>
+        <button id="tag-modal-close" type="button" data-i18n-title="close" data-i18n-aria="close" class="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-all">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+        </button>
+      </div>
+
+      <!-- Add form -->
+      <form id="tag-add-form" class="px-5 sm:px-6 pt-4 pb-3 border-b border-slate-800/80" autocomplete="off">
+        <div class="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-2.5">
+          <div>
+            <label for="tag-add-text" data-i18n="tagTextLabel" class="block text-xs sm:text-sm font-semibold text-slate-300 mb-1.5">Prompt text (English)</label>
+            <input id="tag-add-text" type="text" data-i18n-placeholder="tagTextPlaceholder"
+              class="w-full bg-slate-950 border border-slate-700/80 rounded-xl px-3.5 py-2 text-xs sm:text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+          </div>
+          <div>
+            <label for="tag-add-note" data-i18n="tagNoteLabel" class="block text-xs sm:text-sm font-semibold text-slate-300 mb-1.5">Note (optional, shown as tooltip)</label>
+            <input id="tag-add-note" type="text" data-i18n-placeholder="tagNotePlaceholder"
+              class="w-full bg-slate-950 border border-slate-700/80 rounded-xl px-3.5 py-2 text-xs sm:text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+          </div>
+          <div class="flex items-end">
+            <button type="submit" class="w-full sm:w-auto px-4 py-2 text-xs sm:text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-500 active:scale-95 rounded-xl shadow-md shadow-indigo-600/30 transition-all flex items-center justify-center gap-1.5">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+              <span data-i18n="add">Add</span>
+            </button>
+          </div>
+        </div>
+        <p id="tag-add-error" class="hidden mt-2 text-xs sm:text-sm font-semibold text-rose-300"></p>
+      </form>
+
+      <!-- Search + list -->
+      <div class="px-5 sm:px-6 pt-3 flex items-center gap-3">
+        <div class="relative flex-1">
+          <svg class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M11 18a7 7 0 100-14 7 7 0 000 14z"></path>
+          </svg>
+          <input id="tag-manage-search" type="search" autocomplete="off" data-i18n-placeholder="searchTags"
+            class="w-full bg-slate-950 border border-slate-700/80 rounded-xl pl-9 pr-3 py-2 text-xs sm:text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+        </div>
+        <span id="tag-manage-count" class="text-xs sm:text-sm text-slate-400 font-semibold shrink-0"></span>
+      </div>
+      <ul id="tag-manage-list" class="flex-1 min-h-[160px] overflow-y-auto px-5 sm:px-6 py-3 space-y-2"></ul>
+
+      <!-- Footer: backup -->
+      <div class="flex flex-wrap items-center justify-between gap-2.5 px-5 sm:px-6 py-4 border-t border-slate-800">
+        <div class="flex flex-wrap items-center gap-2">
+          <button id="tag-export-btn" type="button" class="px-3.5 py-2 text-xs sm:text-sm font-semibold text-slate-200 bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/60 rounded-xl transition-all flex items-center gap-1.5">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V4"></path></svg>
+            <span data-i18n="exportJson">Export JSON</span>
+          </button>
+          <button id="tag-import-btn" type="button" class="px-3.5 py-2 text-xs sm:text-sm font-semibold text-slate-200 bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/60 rounded-xl transition-all flex items-center gap-1.5">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M17 8l-5-5m0 0L7 8m5-5v12"></path></svg>
+            <span data-i18n="importJson">Import JSON</span>
+          </button>
+          <input id="tag-import-file" type="file" accept="application/json,.json" class="hidden">
+        </div>
+        <button id="tag-restore-btn" type="button" class="px-3.5 py-2 text-xs sm:text-sm font-semibold text-slate-400 hover:text-rose-300 hover:bg-rose-950/40 border border-transparent hover:border-rose-500/40 rounded-xl transition-all">
+          <span data-i18n="restoreDefaults">Restore defaults</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- Toast Notification -->
   <div id="toast" class="fixed bottom-6 right-6 px-5 py-3.5 bg-indigo-600 text-white rounded-xl shadow-2xl flex items-center gap-2.5 transform translate-y-20 opacity-0 transition-all duration-300 z-50 pointer-events-none">
     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
     </svg>
-    <span id="toast-msg" class="text-xs sm:text-sm font-semibold">已複製到剪貼簿！</span>
+    <span id="toast-msg" class="text-xs sm:text-sm font-semibold"></span>
   </div>
 
   <!-- Application Logic -->
   <script>
+    // ---------------------------------------------------------------------
+    // i18n
+    // ---------------------------------------------------------------------
+    const I18N = {
+      en: {
+        docTitle: 'MiniMax H3 Multi-Shot Prompt Generator',
+        title: 'MiniMax H3 Multi-Shot Prompt Generator',
+        subtitle: 'Structured AI video prompts & multi-shot storyboard tool',
+        reset: 'Reset',
+        badge: 'MiniMax H3 compatible',
+        language: 'Language',
+        seqTitle: 'Shot Sequence',
+        seqDesc: 'Manage the number of shots and the timestamp step',
+        totalShots: 'Total shots',
+        exportedCount: '({n} in output)',
+        addShot: 'Add Shot',
+        timeStepLabel: 'Default time step for new shots',
+        sec: 'sec',
+        autoFormat: 'Auto formatting',
+        autoPeriodLabel: 'Append a period (.) to the end of each shot',
+        addShotBottom: 'Add the next shot to the sequence',
+        audioTitle: 'Soundscape & Music',
+        soundscapeHint: '(ambient sound)',
+        musicHint: '(background music)',
+        previewTitle: 'Live Output (Preview)',
+        copy: 'Copy Prompt',
+        copied: 'Copied!',
+        comfyNote: 'Paste directly into a ComfyUI MiniMax H3 workflow',
+        chars: '{n} chars',
+        tagsTitle: 'Common AI Video Prompt Tags',
+        tagsHint: 'Click to insert into the current shot',
+        toastCopied: 'Full prompt copied to clipboard!',
+        toastReset: 'Reset to the default sample!',
+        toastChip: 'Tag inserted into the selected shot card',
+        moveUp: 'Move up',
+        moveDown: 'Move down',
+        duplicate: 'Duplicate shot',
+        delete: 'Delete shot',
+        adjustMinus: 'Subtract {n} ms',
+        adjustPlus: 'Add {n} ms',
+        placeholder: 'Describe on-screen motion, body movement, camera work or facial expression...',
+        skipped: 'Empty shot — it will be skipped in the output',
+        tsInvalid: 'Invalid timestamp — use MM:SS.mmm (e.g. 00:01.500)',
+        tsOrder: 'Must be later than the previous shot ({prev} at {ts})',
+        tsSummary: '{n} timestamp issue(s) — check the highlighted shots',
+        manageTags: 'Manage',
+        searchTags: 'Search tags...',
+        manageTitle: 'Manage Prompt Tags',
+        close: 'Close',
+        tagTextLabel: 'Prompt text (English)',
+        tagTextPlaceholder: 'e.g. camera slowly pulls back',
+        tagNoteLabel: 'Note (optional, shown as tooltip)',
+        tagNotePlaceholder: 'e.g. slow dolly out',
+        add: 'Add',
+        edit: 'Edit',
+        save: 'Save',
+        cancel: 'Cancel',
+        deleteTag: 'Delete tag',
+        confirmDelete: 'Delete?',
+        exportJson: 'Export JSON',
+        importJson: 'Import JSON',
+        restoreDefaults: 'Restore defaults',
+        tagCount: '{n} tags',
+        noTags: 'No tags yet. Click “Manage” to add your own.',
+        noTagsMatch: 'No tags match your search.',
+        tagEmptyError: 'Prompt text cannot be empty.',
+        tagDuplicateError: 'This tag already exists.',
+        toastTagAdded: 'Tag added',
+        toastTagUpdated: 'Tag updated',
+        toastTagDeleted: 'Tag deleted',
+        toastExported: 'Tags exported as JSON',
+        toastImported: 'Imported {added} tag(s), skipped {skipped} duplicate(s)',
+        toastImportFail: 'Import failed: not a valid tag JSON file',
+        confirmRestore: 'Replace all your tags with the default set? Export a backup first if you want to keep them.',
+        toastRestored: 'Default tags restored',
+        dragHandle: 'Drag to reorder',
+        toastSelectCopy: 'The browser blocked copying. The prompt is selected — press Ctrl+C (⌘C on Mac).',
+      },
+      'zh-Hant': {
+        docTitle: 'MiniMax H3 多鏡頭提示詞產生器',
+        title: 'MiniMax H3 多鏡頭提示詞產生器',
+        subtitle: '結構化 AI 影片 Prompt 與多鏡頭分鏡腳本工具',
+        reset: '重置範例',
+        badge: '支援 MiniMax H3 規範',
+        language: '語言',
+        seqTitle: '鏡頭序列設定',
+        seqDesc: '管理多鏡頭數量與時間戳記遞增間隔',
+        totalShots: '總鏡頭數',
+        exportedCount: '（輸出 {n} 個）',
+        addShot: '新增 Shot',
+        timeStepLabel: '新增鏡頭預設時間間隔',
+        sec: '秒',
+        autoFormat: '自動格式優化',
+        autoPeriodLabel: '自動在每個 Shot 結尾補上句號 (.)',
+        addShotBottom: '新增下一個 Shot 到序列',
+        audioTitle: '聲音與音樂設定 (Soundscape & Music)',
+        soundscapeHint: '(環境音效)',
+        musicHint: '(背景音樂)',
+        previewTitle: '即時整合輸出 (Preview)',
+        copy: '複製 Prompt',
+        copied: '已複製！',
+        comfyNote: '可直接貼入 ComfyUI MiniMax H3 工作流',
+        chars: '{n} 字元',
+        tagsTitle: '常用 AI 影片提示詞標籤',
+        tagsHint: '點擊自動插入至當前 Shot',
+        toastCopied: '已複製完整的 Prompt 至剪貼簿！',
+        toastReset: '已重置為預設範例！',
+        toastChip: '已插入提示詞至目前選取的 Shot 卡片',
+        moveUp: '向上移',
+        moveDown: '向下移',
+        duplicate: '複製 Shot',
+        delete: '刪除 Shot',
+        adjustMinus: '減少 {n} 毫秒',
+        adjustPlus: '增加 {n} 毫秒',
+        placeholder: '輸入畫面動態、肢體動作、運鏡或表情描述...',
+        skipped: '空白鏡頭，輸出時會自動略過',
+        tsInvalid: '時間戳記格式錯誤，請使用 MM:SS.mmm（例如 00:01.500）',
+        tsOrder: '必須晚於上一個鏡頭（{prev} 為 {ts}）',
+        tsSummary: '有 {n} 個時間戳記問題，請檢查標示紅色的鏡頭',
+        manageTags: '管理',
+        searchTags: '搜尋標籤...',
+        manageTitle: '管理提示詞標籤',
+        close: '關閉',
+        tagTextLabel: '提示詞內容（英文）',
+        tagTextPlaceholder: '例如：camera slowly pulls back',
+        tagNoteLabel: '說明（選填，滑鼠移上時顯示）',
+        tagNotePlaceholder: '例如：鏡頭緩慢拉遠',
+        add: '新增',
+        edit: '編輯',
+        save: '儲存',
+        cancel: '取消',
+        deleteTag: '刪除標籤',
+        confirmDelete: '確定刪除？',
+        exportJson: '匯出 JSON',
+        importJson: '匯入 JSON',
+        restoreDefaults: '恢復預設標籤',
+        tagCount: '共 {n} 個',
+        noTags: '目前沒有標籤，點「管理」新增自己的標籤。',
+        noTagsMatch: '找不到符合的標籤。',
+        tagEmptyError: '提示詞內容不能空白。',
+        tagDuplicateError: '這個標籤已經存在。',
+        toastTagAdded: '已新增標籤',
+        toastTagUpdated: '已更新標籤',
+        toastTagDeleted: '已刪除標籤',
+        toastExported: '已匯出標籤 JSON 檔',
+        toastImported: '已匯入 {added} 個標籤，略過 {skipped} 個重複',
+        toastImportFail: '匯入失敗：不是有效的標籤 JSON 檔',
+        confirmRestore: '要用預設標籤取代目前所有標籤嗎？如果想保留，請先匯出備份。',
+        toastRestored: '已恢復預設標籤',
+        dragHandle: '拖曳以調整順序',
+        toastSelectCopy: '瀏覽器阻擋了複製，已幫你選取 Prompt，請按 Ctrl+C（Mac 為 ⌘C）。',
+      },
+      ja: {
+        docTitle: 'MiniMax H3 マルチショット プロンプトジェネレーター',
+        title: 'MiniMax H3 マルチショット プロンプトジェネレーター',
+        subtitle: '構造化 AI 動画プロンプト＆マルチショット絵コンテツール',
+        reset: 'リセット',
+        badge: 'MiniMax H3 対応',
+        language: '言語',
+        seqTitle: 'ショットシーケンス',
+        seqDesc: 'ショット数とタイムスタンプの間隔を管理',
+        totalShots: '総ショット数',
+        exportedCount: '（出力 {n} 件）',
+        addShot: 'ショット追加',
+        timeStepLabel: '新規ショットのデフォルト間隔',
+        sec: '秒',
+        autoFormat: '自動フォーマット',
+        autoPeriodLabel: '各ショットの末尾にピリオド (.) を自動追加',
+        addShotBottom: '次のショットをシーケンスに追加',
+        audioTitle: 'サウンド＆音楽設定',
+        soundscapeHint: '(環境音)',
+        musicHint: '(BGM)',
+        previewTitle: 'リアルタイム出力 (Preview)',
+        copy: 'プロンプトをコピー',
+        copied: 'コピーしました！',
+        comfyNote: 'ComfyUI の MiniMax H3 ワークフローにそのまま貼り付け可能',
+        chars: '{n} 文字',
+        tagsTitle: 'よく使う AI 動画プロンプトタグ',
+        tagsHint: 'クリックで現在のショットに挿入',
+        toastCopied: 'プロンプト全体をクリップボードにコピーしました！',
+        toastReset: 'デフォルトのサンプルにリセットしました！',
+        toastChip: '選択中のショットカードにタグを挿入しました',
+        moveUp: '上へ移動',
+        moveDown: '下へ移動',
+        duplicate: 'ショットを複製',
+        delete: 'ショットを削除',
+        adjustMinus: '{n} ミリ秒減らす',
+        adjustPlus: '{n} ミリ秒増やす',
+        placeholder: '画面の動き、身体の動作、カメラワーク、表情などを入力...',
+        skipped: '空欄のショットは出力時にスキップされます',
+        tsInvalid: 'タイムスタンプの形式が不正です。MM:SS.mmm（例：00:01.500）で入力してください',
+        tsOrder: '前のショット（{prev}：{ts}）より後の時刻にしてください',
+        tsSummary: 'タイムスタンプの問題が {n} 件あります。赤く表示されたショットを確認してください',
+        manageTags: '管理',
+        searchTags: 'タグを検索...',
+        manageTitle: 'プロンプトタグの管理',
+        close: '閉じる',
+        tagTextLabel: 'プロンプト（英語）',
+        tagTextPlaceholder: '例：camera slowly pulls back',
+        tagNoteLabel: 'メモ（任意・ツールチップに表示）',
+        tagNotePlaceholder: '例：カメラがゆっくり引く',
+        add: '追加',
+        edit: '編集',
+        save: '保存',
+        cancel: 'キャンセル',
+        deleteTag: 'タグを削除',
+        confirmDelete: '削除しますか？',
+        exportJson: 'JSON をエクスポート',
+        importJson: 'JSON をインポート',
+        restoreDefaults: 'デフォルトに戻す',
+        tagCount: '{n} 件',
+        noTags: 'タグがありません。「管理」から追加してください。',
+        noTagsMatch: '一致するタグがありません。',
+        tagEmptyError: 'プロンプトを入力してください。',
+        tagDuplicateError: 'このタグは既に存在します。',
+        toastTagAdded: 'タグを追加しました',
+        toastTagUpdated: 'タグを更新しました',
+        toastTagDeleted: 'タグを削除しました',
+        toastExported: 'タグを JSON でエクスポートしました',
+        toastImported: '{added} 件をインポート、重複 {skipped} 件をスキップしました',
+        toastImportFail: 'インポート失敗：有効なタグ JSON ファイルではありません',
+        confirmRestore: 'すべてのタグをデフォルトに置き換えますか？残したい場合は先にエクスポートしてください。',
+        toastRestored: 'デフォルトのタグに戻しました',
+        dragHandle: 'ドラッグで並べ替え',
+        toastSelectCopy: 'ブラウザがコピーをブロックしました。プロンプトを選択したので Ctrl+C（Mac は ⌘C）を押してください。',
+      },
+    };
+
+    const SUPPORTED_LANGS = ['en', 'zh-Hant', 'ja'];
+    const LANG_STORAGE_KEY = 'msp-lang';
+
+    function loadLang() {
+      try {
+        const saved = localStorage.getItem(LANG_STORAGE_KEY);
+        if (SUPPORTED_LANGS.includes(saved)) return saved;
+      } catch (e) { /* storage unavailable */ }
+      return 'en';
+    }
+
+    function saveLang(lang) {
+      try { localStorage.setItem(LANG_STORAGE_KEY, lang); } catch (e) { /* ignore */ }
+    }
+
+    let currentLang = loadLang();
+
+    function t(key, vars = {}) {
+      const dict = I18N[currentLang] || I18N.en;
+      let str = dict[key] ?? I18N.en[key] ?? key;
+      Object.keys(vars).forEach(k => {
+        str = str.replaceAll(`{${k}}`, vars[k]);
+      });
+      return str;
+    }
+
+    // ---------------------------------------------------------------------
+    // Prompt tags (user-managed, stored in localStorage)
+    // The tag text is sent to the model (always English). The tooltip shows
+    // the user's own `note`, or for built-in tags the translation in `notes`.
+    // ---------------------------------------------------------------------
+    const DEFAULT_TAGS = [
+      { text: 'pouting with flushed cheeks', notes: { 'zh-Hant': '傲嬌鼓嘴臉紅', ja: '頬を赤らめてふくれっ面' } },
+      { text: 'looking back over her shoulder', notes: { 'zh-Hant': '轉頭回眸看', ja: '肩越しに振り返る' } },
+      { text: 'camera slowly pushes in', notes: { 'zh-Hant': '鏡頭緩慢推進', ja: 'カメラがゆっくり寄る' } },
+      { text: 'smoothly orbits around to her back', notes: { 'zh-Hant': '平滑環繞到身後', ja: '背後へ滑らかに回り込む' } },
+      { text: 'panting and breathing rapidly', notes: { 'zh-Hant': '喘氣急促呼吸', ja: '息を切らして荒く呼吸する' } },
+      { text: 'winks shyly with one eye closed', notes: { 'zh-Hant': '害羞閉單眼', ja: '恥ずかしそうに片目をつぶる' } },
+      { text: 'viscous clear liquid slowly drips', notes: { 'zh-Hant': '黏稠透明液體緩慢滴落', ja: '粘り気のある透明な液体がゆっくり滴る' } },
+      { text: 'stretches into thin strands', notes: { 'zh-Hant': '拉成細絲狀', ja: '細い糸状に伸びる' } },
+      { text: 'low-angle shot looking up', notes: { 'zh-Hant': '仰角向上拍攝', ja: 'ローアングルで見上げる' } },
+      { text: 'lifting skirt and swaying back and forth', notes: { 'zh-Hant': '拉起裙襬搖擺', ja: 'スカートを持ち上げて左右に揺れる' } },
+    ];
+
+    const TAGS_STORAGE_KEY = 'msp-tags';
+    const TAGS_EXPORT_TYPE = 'minimax-h3-prompt-tags';
+
+    function makeTagId() {
+      return 'tag-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8);
+    }
+
+    // Normalise anything tag-like into { id, text, note, notes? }; null if unusable.
+    function normalizeTag(raw) {
+      if (typeof raw === 'string') raw = { text: raw };
+      if (!raw || typeof raw !== 'object' || typeof raw.text !== 'string') return null;
+      const text = raw.text.trim();
+      if (!text) return null;
+      const tag = { id: makeTagId(), text, note: typeof raw.note === 'string' ? raw.note.trim() : '' };
+      if (raw.notes && typeof raw.notes === 'object') {
+        const notes = {};
+        SUPPORTED_LANGS.forEach(lang => {
+          if (typeof raw.notes[lang] === 'string' && raw.notes[lang].trim()) notes[lang] = raw.notes[lang].trim();
+        });
+        if (Object.keys(notes).length) tag.notes = notes;
+      }
+      return tag;
+    }
+
+    function defaultTags() {
+      return DEFAULT_TAGS.map(normalizeTag);
+    }
+
+    function loadTags() {
+      try {
+        const raw = localStorage.getItem(TAGS_STORAGE_KEY);
+        if (raw !== null) {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed)) return parsed.map(normalizeTag).filter(Boolean);
+        }
+      } catch (e) { /* storage unavailable or corrupted: fall back to defaults */ }
+      return defaultTags();
+    }
+
+    function saveTags() {
+      try {
+        const data = state.tags.map(({ text, note, notes }) => (notes ? { text, note, notes } : { text, note }));
+        localStorage.setItem(TAGS_STORAGE_KEY, JSON.stringify(data));
+      } catch (e) { /* ignore */ }
+    }
+
+    function tagTooltip(tag) {
+      return tag.note || (tag.notes && tag.notes[currentLang]) || '';
+    }
+
+    function tagKey(text) {
+      return text.trim().toLowerCase();
+    }
+
+    function tagMatches(tag, query) {
+      if (!query) return true;
+      const q = query.trim().toLowerCase();
+      if (!q) return true;
+      const haystack = [tag.text, tag.note, ...(tag.notes ? Object.values(tag.notes) : [])].join(' ').toLowerCase();
+      return haystack.includes(q);
+    }
+
+    const TIME_STEPS = [0.8, 1, 1.5, 2, 3];
+
+    // ---------------------------------------------------------------------
+    // State
+    // ---------------------------------------------------------------------
     // Default initial sample state (Blank description)
     const initialShots = [
       {
@@ -267,7 +716,10 @@
       }
     ];
 
+    let nextShotId = 100;
+
     let state = {
+      tags: loadTags(),
       shots: JSON.parse(JSON.stringify(initialShots)),
       overallSoundscape: 'N/A',
       nonDiegeticMusic: 'N/A',
@@ -280,6 +732,7 @@
     const shotsListEl = document.getElementById('shots-list');
     const outputPreviewEl = document.getElementById('output-preview');
     const shotCountBadgeEl = document.getElementById('shot-count-badge');
+    const exportedCountEl = document.getElementById('exported-count');
     const charCountEl = document.getElementById('char-count');
     const soundscapeInput = document.getElementById('soundscape-input');
     const musicInput = document.getElementById('music-input');
@@ -290,17 +743,54 @@
     const addShotBtn = document.getElementById('add-shot-btn');
     const addShotBottomBtn = document.getElementById('add-shot-bottom-btn');
     const resetBtn = document.getElementById('reset-btn');
+    const tsWarningEl = document.getElementById('ts-warning');
+    const tsWarningTextEl = document.getElementById('ts-warning-text');
+    const chipsListEl = document.getElementById('chips-list');
+    const langBtn = document.getElementById('lang-btn');
+    const langMenu = document.getElementById('lang-menu');
+    const tagSearchInput = document.getElementById('tag-search');
+    const manageTagsBtn = document.getElementById('manage-tags-btn');
+    const tagModal = document.getElementById('tag-modal');
+    const tagModalBackdrop = document.getElementById('tag-modal-backdrop');
+    const tagModalClose = document.getElementById('tag-modal-close');
+    const tagAddForm = document.getElementById('tag-add-form');
+    const tagAddText = document.getElementById('tag-add-text');
+    const tagAddNote = document.getElementById('tag-add-note');
+    const tagAddError = document.getElementById('tag-add-error');
+    const tagManageSearch = document.getElementById('tag-manage-search');
+    const tagManageCount = document.getElementById('tag-manage-count');
+    const tagManageList = document.getElementById('tag-manage-list');
+    const tagExportBtn = document.getElementById('tag-export-btn');
+    const tagImportBtn = document.getElementById('tag-import-btn');
+    const tagImportFile = document.getElementById('tag-import-file');
+    const tagRestoreBtn = document.getElementById('tag-restore-btn');
 
-    // Helper: Format seconds float into MM:SS.sss timestamp string
+    let copyResetTimer = null;
+
+    // ---------------------------------------------------------------------
+    // Helpers
+    // ---------------------------------------------------------------------
+    const TIMESTAMP_RE = /^\d{2}:[0-5]\d\.\d{3}$/;
+
+    function escapeHtml(str) {
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    // Format seconds float into MM:SS.mmm timestamp string
     function formatTimestamp(totalSeconds) {
-      const mins = Math.floor(totalSeconds / 60);
-      const secs = totalSeconds % 60;
+      const totalMs = Math.round(totalSeconds * 1000);
+      const mins = Math.floor(totalMs / 60000);
+      const secs = (totalMs % 60000) / 1000;
       const minsStr = String(mins).padStart(2, '0');
       const secsStr = secs.toFixed(3).padStart(6, '0');
       return `${minsStr}:${secsStr}`;
     }
 
-    // Helper: Parse MM:SS.sss into total seconds
+    // Parse MM:SS.mmm into total seconds
     function parseTimestamp(tsString) {
       try {
         const parts = tsString.trim().split(':');
@@ -315,12 +805,53 @@
       return 0;
     }
 
+    function isValidTimestamp(tsString) {
+      return TIMESTAMP_RE.test(tsString.trim());
+    }
+
+    // Analyse every shot: output numbering (empty shots are skipped and the
+    // rest are renumbered) and timestamp errors.
+    //  - Format is checked for every shot.
+    //  - Ordering is checked between consecutive exported (non-empty) shots.
+    function analyzeShots() {
+      let outNum = 0;
+      let prev = null;
+      return state.shots.map(shot => {
+        const text = shot.description.trim();
+        const ts = shot.timestamp.trim();
+        const info = { outNum: null, error: null };
+
+        if (!isValidTimestamp(ts)) {
+          info.error = { type: 'invalid' };
+        }
+
+        if (text.length === 0) return info;
+
+        outNum += 1;
+        info.outNum = outNum;
+
+        if (!info.error) {
+          const secs = parseTimestamp(ts);
+          if (prev && secs <= prev.secs) {
+            info.error = { type: 'order', prevNum: prev.outNum, prevTs: prev.ts };
+          }
+          prev = { secs, outNum, ts };
+        }
+        return info;
+      });
+    }
+
+    function errorMessage(error) {
+      if (!error) return '';
+      if (error.type === 'invalid') return t('tsInvalid');
+      return t('tsOrder', { prev: `[Shot ${error.prevNum}]`, ts: error.prevTs });
+    }
+
     // Adjust timestamp in milliseconds
     function adjustShotTime(index, deltaMs) {
       const shot = state.shots[index];
       const currentSecs = parseTimestamp(shot.timestamp);
-      const deltaSecs = deltaMs / 1000;
-      const newSecs = Math.max(0, currentSecs + deltaSecs);
+      const newSecs = Math.max(0, currentSecs + deltaMs / 1000);
       shot.timestamp = formatTimestamp(newSecs);
       render();
     }
@@ -336,68 +867,105 @@
       render();
     }
 
-    // Render Function
+    // ---------------------------------------------------------------------
+    // Rendering
+    // ---------------------------------------------------------------------
+    const TS_BOX_BASE = 'ts-box inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 font-mono text-xs sm:text-sm transition-colors';
+    const TS_BOX_OK = 'bg-slate-950 border-slate-700/80 focus-within:border-indigo-500';
+    const TS_BOX_ERR = 'bg-rose-950/40 border-rose-500 ring-1 ring-rose-500/60';
+
+    function adjustButton(index, delta) {
+      const positive = delta > 0;
+      const color = positive
+        ? 'hover:bg-emerald-950/80 text-emerald-300 hover:border-emerald-500/60'
+        : 'hover:bg-rose-950/80 text-rose-300 hover:border-rose-500/60';
+      const title = positive ? t('adjustPlus', { n: delta }) : t('adjustMinus', { n: Math.abs(delta) });
+      const label = `${positive ? '+' : '-'}${Math.abs(delta)}ms`;
+      return `<button data-index="${index}" data-delta="${delta}" title="${escapeHtml(title)}" class="time-adjust-btn px-1.5 py-1 text-[11px] sm:text-xs font-mono font-semibold bg-slate-800/80 border border-slate-700/60 ${color} rounded transition-all active:scale-95">${label}</button>`;
+    }
+
     function render() {
       // 1. Render Shots Cards
       shotsListEl.innerHTML = '';
       state.shots.forEach((shot, index) => {
         const card = document.createElement('div');
-        card.className = `glass-panel rounded-2xl p-5 border transition-all duration-200 ${
-          state.activeShotIndex === index 
-            ? 'border-indigo-500/80 bg-slate-900/90 shadow-md shadow-indigo-500/10' 
+        card.dataset.index = index;
+        card.className = `shot-card glass-panel rounded-2xl p-5 border transition-all duration-200 ${
+          state.activeShotIndex === index
+            ? 'border-indigo-500/80 bg-slate-900/90 shadow-md shadow-indigo-500/10'
             : 'border-slate-800 hover:border-slate-700'
         }`;
 
         card.innerHTML = `
-          <div class="flex flex-wrap items-center justify-between gap-3 pb-3.5 mb-3.5 border-b border-slate-800/80">
-            <!-- Left: Shot Tag, Timestamp Input, and Fine-tune Buttons -->
-            <div class="flex flex-wrap items-center gap-2 sm:gap-2.5">
-              <span class="px-2.5 py-1 rounded-lg bg-indigo-500/10 border border-indigo-500/30 text-indigo-300 font-mono text-xs sm:text-sm font-bold">
-                [Shot ${index + 1}]
-              </span>
+          <div class="pb-3.5 mb-3.5 border-b border-slate-800/80">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <!-- Left: Shot Tag, Timestamp Input, and Fine-tune Buttons -->
+              <div class="flex flex-wrap items-center gap-2">
+                <button type="button" class="drag-handle -ml-2 p-1 text-slate-500 hover:text-indigo-300 cursor-grab active:cursor-grabbing rounded-md transition-colors" title="${escapeHtml(t('dragHandle'))}" aria-label="${escapeHtml(t('dragHandle'))}">
+                  <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M7 4a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zm0 6a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zm-1.5 7.5a1.5 1.5 0 100-3 1.5 1.5 0 000 3zM16 4a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zm-1.5 7.5a1.5 1.5 0 100-3 1.5 1.5 0 000 3zM16 16a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z"/></svg>
+                </button>
+                <span class="shot-label px-2.5 py-1 rounded-lg border font-mono text-xs sm:text-sm font-bold"></span>
 
-              <div class="relative flex items-center">
-                <span class="absolute left-2.5 text-slate-500 font-mono text-xs sm:text-sm select-none pointer-events-none">At</span>
-                <input type="text" data-index="${index}" data-field="timestamp" value="${shot.timestamp}" 
-                  class="shot-input bg-slate-950 border border-slate-700/80 focus:border-indigo-500 rounded-lg pl-8 pr-2 py-1.5 font-mono text-xs sm:text-sm text-indigo-200 w-44 focus:outline-none">
+                <label class="${TS_BOX_BASE} ${TS_BOX_OK}">
+                  <span class="text-slate-500 select-none">At</span>
+                  <input type="text" data-index="${index}" data-field="timestamp" value="${escapeHtml(shot.timestamp)}"
+                    size="9" maxlength="9" spellcheck="false" autocomplete="off" inputmode="decimal"
+                    class="shot-input ts-input bg-transparent p-0 border-0 font-mono text-xs sm:text-sm text-indigo-200 focus:outline-none focus:ring-0">
+                </label>
+
+                <!-- Timestamp Fine-tune Buttons (+/- 100ms, +/- 500ms) -->
+                <div class="flex items-center gap-1 bg-slate-950/80 p-1 rounded-lg border border-slate-800">
+                  ${adjustButton(index, -500)}
+                  ${adjustButton(index, -100)}
+                  ${adjustButton(index, 100)}
+                  ${adjustButton(index, 500)}
+                </div>
               </div>
 
-              <!-- Timestamp Fine-tune Buttons (+/- 100ms, +/- 500ms) -->
-              <div class="flex items-center gap-1 bg-slate-950/80 p-1 rounded-lg border border-slate-800">
-                <button data-index="${index}" data-delta="-500" class="time-adjust-btn px-2 py-1 text-[11px] sm:text-xs font-mono font-semibold bg-slate-800/80 hover:bg-rose-950/80 text-rose-300 border border-slate-700/60 hover:border-rose-500/60 rounded transition-all active:scale-95" title="減少 500 毫秒">-500ms</button>
-                <button data-index="${index}" data-delta="-100" class="time-adjust-btn px-2 py-1 text-[11px] sm:text-xs font-mono font-semibold bg-slate-800/80 hover:bg-rose-950/80 text-rose-300 border border-slate-700/60 hover:border-rose-500/60 rounded transition-all active:scale-95" title="減少 100 毫秒">-100ms</button>
-                <button data-index="${index}" data-delta="100" class="time-adjust-btn px-2 py-1 text-[11px] sm:text-xs font-mono font-semibold bg-slate-800/80 hover:bg-emerald-950/80 text-emerald-300 border border-slate-700/60 hover:border-emerald-500/60 rounded transition-all active:scale-95" title="增加 100 毫秒">+100ms</button>
-                <button data-index="${index}" data-delta="500" class="time-adjust-btn px-2 py-1 text-[11px] sm:text-xs font-mono font-semibold bg-slate-800/80 hover:bg-emerald-950/80 text-emerald-300 border border-slate-700/60 hover:border-emerald-500/60 rounded transition-all active:scale-95" title="增加 500 毫秒">+500ms</button>
-              </div>
-            </div>
-
-            <!-- Right: Move Up/Down, Duplicate, Delete -->
-            <div class="flex items-center gap-1">
-              <button data-index="${index}" data-dir="-1" class="move-shot-btn p-1.5 text-slate-400 hover:text-indigo-300 hover:bg-slate-800 rounded-lg transition-all ${index === 0 ? 'opacity-30 cursor-not-allowed' : ''}" title="向上移">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"></path></svg>
-              </button>
-              <button data-index="${index}" data-dir="1" class="move-shot-btn p-1.5 text-slate-400 hover:text-indigo-300 hover:bg-slate-800 rounded-lg transition-all ${index === state.shots.length - 1 ? 'opacity-30 cursor-not-allowed' : ''}" title="向下移">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-              </button>
-              <button data-index="${index}" class="duplicate-shot-btn p-1.5 text-slate-400 hover:text-indigo-300 hover:bg-slate-800 rounded-lg transition-all" title="複製 Shot">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
-                </svg>
-              </button>
-              ${state.shots.length > 1 ? `
-                <button data-index="${index}" class="delete-shot-btn p-1.5 text-slate-400 hover:text-rose-400 hover:bg-slate-800 rounded-lg transition-all" title="刪除 Shot">
+              <!-- Right: Move Up/Down, Duplicate, Delete -->
+              <div class="flex items-center gap-0.5">
+                <button data-index="${index}" data-dir="-1" class="move-shot-btn p-1.5 text-slate-400 hover:text-indigo-300 hover:bg-slate-800 rounded-lg transition-all ${index === 0 ? 'opacity-30 cursor-not-allowed' : ''}" title="${escapeHtml(t('moveUp'))}">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"></path></svg>
+                </button>
+                <button data-index="${index}" data-dir="1" class="move-shot-btn p-1.5 text-slate-400 hover:text-indigo-300 hover:bg-slate-800 rounded-lg transition-all ${index === state.shots.length - 1 ? 'opacity-30 cursor-not-allowed' : ''}" title="${escapeHtml(t('moveDown'))}">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                </button>
+                <button data-index="${index}" class="duplicate-shot-btn p-1.5 text-slate-400 hover:text-indigo-300 hover:bg-slate-800 rounded-lg transition-all" title="${escapeHtml(t('duplicate'))}">
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
                   </svg>
                 </button>
-              ` : ''}
+                ${state.shots.length > 1 ? `
+                  <button data-index="${index}" class="delete-shot-btn p-1.5 text-slate-400 hover:text-rose-400 hover:bg-slate-800 rounded-lg transition-all" title="${escapeHtml(t('delete'))}">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                    </svg>
+                  </button>
+                ` : ''}
+              </div>
             </div>
+
+            <!-- Empty shot note -->
+            <p class="shot-skip hidden mt-2.5 text-xs sm:text-sm font-medium text-slate-400 flex items-center gap-1.5">
+              <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+              </svg>
+              <span>${escapeHtml(t('skipped'))}</span>
+            </p>
+
+            <!-- Timestamp error message -->
+            <p class="ts-error hidden mt-2.5 text-xs sm:text-sm font-semibold text-rose-300 flex items-center gap-1.5">
+              <svg class="w-4 h-4 shrink-0 text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"></path>
+              </svg>
+              <span class="ts-error-text"></span>
+            </p>
           </div>
 
           <div>
             <textarea data-index="${index}" data-field="description" rows="3" style="min-height: 110px;"
-              placeholder="輸入畫面動態、肢體動作、運鏡或表情描述..."
-              class="shot-input w-full bg-slate-950/80 border border-slate-800 focus:border-indigo-500/80 rounded-xl p-3.5 text-xs sm:text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-indigo-500/50 resize-y font-sans leading-relaxed">${shot.description}</textarea>
+              placeholder="${escapeHtml(t('placeholder'))}"
+              class="shot-input w-full bg-slate-950/80 border border-slate-800 focus:border-indigo-500/80 rounded-xl p-3.5 text-xs sm:text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-indigo-500/50 resize-y font-sans leading-relaxed">${escapeHtml(shot.description)}</textarea>
           </div>
         `;
 
@@ -407,53 +975,123 @@
       // Update Shot Counter
       shotCountBadgeEl.textContent = state.shots.length;
 
-      // 2. Generate Live Output String
-      const fullPrompt = generateFormattedOutput();
-      outputPreviewEl.textContent = fullPrompt;
-      charCountEl.textContent = `${fullPrompt.length} 字元`;
-
       // Attach Event Listeners to newly rendered inputs
       attachShotEvents();
+
+      // 2. Labels, validation and live output
+      refreshDerived();
     }
 
-    // Build Formatted Output String strictly matching requested structure
-    function generateFormattedOutput() {
-      let descString = "";
+    // Update everything that depends on shot content without rebuilding the
+    // cards (keeps focus / caret while typing).
+    function refreshDerived() {
+      const analysis = analyzeShots();
+      const cards = shotsListEl.querySelectorAll('.shot-card');
+      let errorCount = 0;
+      let exported = 0;
 
-      state.shots.forEach((shot, index) => {
+      cards.forEach((card, index) => {
+        const info = analysis[index];
+        if (!info) return;
+
+        const label = card.querySelector('.shot-label');
+        const skip = card.querySelector('.shot-skip');
+        const tsBox = card.querySelector('.ts-box');
+        const tsInput = card.querySelector('.ts-input');
+        const errEl = card.querySelector('.ts-error');
+        const errText = card.querySelector('.ts-error-text');
+
+        if (info.outNum) {
+          exported += 1;
+          label.textContent = `[Shot ${info.outNum}]`;
+          label.className = 'shot-label px-2.5 py-1 rounded-lg border font-mono text-xs sm:text-sm font-bold bg-indigo-500/10 border-indigo-500/30 text-indigo-300';
+          skip.classList.add('hidden');
+        } else {
+          label.textContent = '[Shot –]';
+          label.className = 'shot-label px-2.5 py-1 rounded-lg border font-mono text-xs sm:text-sm font-bold bg-slate-800/60 border-slate-700/60 text-slate-400';
+          skip.classList.remove('hidden');
+        }
+
+        if (info.error) {
+          errorCount += 1;
+          tsBox.className = `${TS_BOX_BASE} ${TS_BOX_ERR}`;
+          tsInput.classList.replace('text-indigo-200', 'text-rose-200');
+          tsInput.setAttribute('aria-invalid', 'true');
+          errText.textContent = errorMessage(info.error);
+          errEl.classList.remove('hidden');
+        } else {
+          tsBox.className = `${TS_BOX_BASE} ${TS_BOX_OK}`;
+          tsInput.classList.replace('text-rose-200', 'text-indigo-200');
+          tsInput.removeAttribute('aria-invalid');
+          errEl.classList.add('hidden');
+        }
+      });
+
+      exportedCountEl.textContent = exported === state.shots.length ? '' : t('exportedCount', { n: exported });
+
+      if (errorCount > 0) {
+        tsWarningTextEl.textContent = t('tsSummary', { n: errorCount });
+        tsWarningEl.classList.remove('hidden');
+      } else {
+        tsWarningEl.classList.add('hidden');
+      }
+
+      const fullPrompt = generateFormattedOutput();
+      outputPreviewEl.textContent = fullPrompt;
+      charCountEl.textContent = t('chars', { n: fullPrompt.length });
+    }
+
+    // Build Formatted Output String strictly matching requested structure.
+    // Empty shots are skipped and the remaining shots are renumbered.
+    function generateFormattedOutput() {
+      const parts = [];
+
+      state.shots.forEach(shot => {
         let text = shot.description.trim();
+        if (text.length === 0) return;
 
         // Apply auto-period rule if enabled
-        if (state.autoPeriod && text.length > 0 && !text.endsWith('.')) {
+        if (state.autoPeriod && !text.endsWith('.')) {
           text += '.';
         }
 
         // Format: [Shot X] At <timestamp>, <description>
-        descString += `[Shot ${index + 1}] At ${shot.timestamp.trim()}, ${text}`;
+        parts.push(`[Shot ${parts.length + 1}] At ${shot.timestamp.trim()}, ${text}`);
       });
 
+      const descString = parts.join(' ');
       const soundscape = state.overallSoundscape.trim() || 'N/A';
       const music = state.nonDiegeticMusic.trim() || 'N/A';
 
       return `integrated_multimodal_description: ${descString}\n\noverall_soundscape: ${soundscape}\nnon_diegetic_music: ${music}`;
     }
 
+    function setActiveShot(index) {
+      if (state.activeShotIndex === index) return;
+      state.activeShotIndex = index;
+      shotsListEl.querySelectorAll('.shot-card').forEach((card, i) => {
+        const active = i === index;
+        card.classList.toggle('border-indigo-500/80', active);
+        card.classList.toggle('bg-slate-900/90', active);
+        card.classList.toggle('shadow-md', active);
+        card.classList.toggle('shadow-indigo-500/10', active);
+        card.classList.toggle('border-slate-800', !active);
+        card.classList.toggle('hover:border-slate-700', !active);
+      });
+    }
+
     // Attach Event Listeners to Input Fields inside Dynamic Cards
     function attachShotEvents() {
       document.querySelectorAll('.shot-input').forEach(input => {
         input.addEventListener('focus', (e) => {
-          state.activeShotIndex = parseInt(e.target.dataset.index);
+          setActiveShot(parseInt(e.target.dataset.index));
         });
 
         input.addEventListener('input', (e) => {
           const idx = parseInt(e.target.dataset.index);
           const field = e.target.dataset.field;
           state.shots[idx][field] = e.target.value;
-          
-          // Re-generate output live
-          const fullPrompt = generateFormattedOutput();
-          outputPreviewEl.textContent = fullPrompt;
-          charCountEl.textContent = `${fullPrompt.length} 字元`;
+          refreshDerived();
         });
       });
 
@@ -502,7 +1140,7 @@
       }
 
       state.shots.push({
-        id: Date.now(),
+        id: nextShotId++,
         timestamp: nextTs,
         description: ''
       });
@@ -525,7 +1163,7 @@
       const nextTs = formatTimestamp(targetSecs + state.timeStepSec);
 
       state.shots.splice(index + 1, 0, {
-        id: Date.now(),
+        id: nextShotId++,
         timestamp: nextTs,
         description: target.description
       });
@@ -533,41 +1171,45 @@
       render();
     }
 
-    // Copy to Clipboard Handler
-    function copyPromptToClipboard() {
+    // Copy to Clipboard Handler (async Clipboard API)
+    async function copyPromptToClipboard() {
       const textToCopy = generateFormattedOutput();
-      
-      const textarea = document.createElement('textarea');
-      textarea.value = textToCopy;
-      textarea.style.position = 'fixed';
-      textarea.style.opacity = '0';
-      document.body.appendChild(textarea);
-      textarea.select();
 
       try {
-        document.execCommand('copy');
-        showToast('已複製完整的 Prompt 至剪貼簿！');
-        
-        // Visual feedback on button
-        copyText.textContent = '已複製！';
-        copyBtn.classList.remove('from-indigo-600', 'to-purple-600');
-        copyBtn.classList.add('bg-emerald-600');
-
-        setTimeout(() => {
-          copyText.textContent = '複製完整的 Prompt';
-          copyBtn.classList.remove('bg-emerald-600');
-          copyBtn.classList.add('from-indigo-600', 'to-purple-600');
-        }, 2000);
-
+        if (!navigator.clipboard || !window.isSecureContext) {
+          throw new Error('Clipboard API unavailable');
+        }
+        await navigator.clipboard.writeText(textToCopy);
       } catch (err) {
-        showToast('複製失敗，請手動複製。');
-        console.error('Copy failed', err);
-      } finally {
-        document.body.removeChild(textarea);
+        // Fallback: select the preview text so the user can press Ctrl+C / Cmd+C.
+        console.warn('Copy failed', err);
+        const range = document.createRange();
+        range.selectNodeContents(outputPreviewEl);
+        const selection = window.getSelection();
+        selection.removeAllRanges();
+        selection.addRange(range);
+        showToast(t('toastSelectCopy'));
+        return;
       }
+
+      showToast(t('toastCopied'));
+
+      // Visual feedback on button
+      copyText.textContent = t('copied');
+      copyBtn.classList.remove('from-indigo-600', 'to-purple-600');
+      copyBtn.classList.add('bg-emerald-600');
+
+      clearTimeout(copyResetTimer);
+      copyResetTimer = setTimeout(() => {
+        copyResetTimer = null;
+        copyText.textContent = t('copy');
+        copyBtn.classList.remove('bg-emerald-600');
+        copyBtn.classList.add('from-indigo-600', 'to-purple-600');
+      }, 2000);
     }
 
     // Toast Notification Display
+    let toastTimer = null;
     function showToast(message) {
       const toast = document.getElementById('toast');
       const toastMsg = document.getElementById('toast-msg');
@@ -576,13 +1218,356 @@
       toast.classList.remove('translate-y-20', 'opacity-0');
       toast.classList.add('translate-y-0', 'opacity-100');
 
-      setTimeout(() => {
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => {
         toast.classList.remove('translate-y-0', 'opacity-100');
         toast.classList.add('translate-y-20', 'opacity-0');
       }, 2500);
     }
 
+    // ---------------------------------------------------------------------
+    // Language
+    // ---------------------------------------------------------------------
+    function renderTimeStepOptions() {
+      timeStepSelect.innerHTML = TIME_STEPS.map(step => {
+        const selected = step === state.timeStepSec ? ' selected' : '';
+        return `<option value="${step}"${selected}>${step.toFixed(1)} ${escapeHtml(t('sec'))} (+${formatTimestamp(step)})</option>`;
+      }).join('');
+    }
+
+    function renderChips() {
+      const query = tagSearchInput.value;
+      const visible = state.tags.filter(tag => tagMatches(tag, query));
+
+      if (visible.length === 0) {
+        const msg = state.tags.length === 0 ? t('noTags') : t('noTagsMatch');
+        chipsListEl.innerHTML = `<p class="text-xs sm:text-sm text-slate-400 py-1">${escapeHtml(msg)}</p>`;
+        return;
+      }
+
+      chipsListEl.innerHTML = visible.map(tag => {
+        const tip = tagTooltip(tag);
+        const titleAttr = tip ? ` title="${escapeHtml(tip)}"` : '';
+        return `<button type="button" data-tag-id="${escapeHtml(tag.id)}" class="prompt-chip px-3 py-1.5 text-xs sm:text-sm font-medium bg-slate-800/80 hover:bg-indigo-600/30 hover:border-indigo-500/50 text-slate-200 hover:text-indigo-100 border border-slate-700/60 rounded-lg transition-all"${titleAttr}>${escapeHtml(tag.text)}</button>`;
+      }).join('');
+    }
+
+    // ---------------------------------------------------------------------
+    // Tag manager modal
+    // ---------------------------------------------------------------------
+    let editingTagId = null;
+    let pendingDeleteId = null;
+
+    const MODAL_INPUT_CLASS = 'w-full bg-slate-950 border border-slate-700/80 rounded-lg px-3 py-1.5 text-xs sm:text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500';
+    const ICON_BTN_CLASS = 'p-1.5 rounded-lg text-slate-400 hover:text-indigo-300 hover:bg-slate-800 transition-all';
+
+    function renderTagManager() {
+      const query = tagManageSearch.value;
+      const visible = state.tags.filter(tag => tagMatches(tag, query));
+      tagManageCount.textContent = t('tagCount', { n: state.tags.length });
+
+      if (visible.length === 0) {
+        const msg = state.tags.length === 0 ? t('noTags') : t('noTagsMatch');
+        tagManageList.innerHTML = `<li class="text-xs sm:text-sm text-slate-400 py-6 text-center">${escapeHtml(msg)}</li>`;
+        return;
+      }
+
+      tagManageList.innerHTML = visible.map(tag => {
+        const id = escapeHtml(tag.id);
+        if (tag.id === editingTagId) {
+          return `
+            <li data-tag-id="${id}" class="rounded-xl border border-indigo-500/60 bg-slate-950/70 p-3">
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <input type="text" class="tag-edit-text ${MODAL_INPUT_CLASS} font-mono" value="${escapeHtml(tag.text)}" aria-label="${escapeHtml(t('tagTextLabel'))}">
+                <input type="text" class="tag-edit-note ${MODAL_INPUT_CLASS}" value="${escapeHtml(tagTooltip(tag))}" placeholder="${escapeHtml(t('tagNotePlaceholder'))}" aria-label="${escapeHtml(t('tagNoteLabel'))}">
+              </div>
+              <p class="tag-edit-error hidden mt-2 text-xs sm:text-sm font-semibold text-rose-300"></p>
+              <div class="mt-2.5 flex justify-end gap-2">
+                <button type="button" data-action="cancel" class="px-3 py-1.5 text-xs sm:text-sm font-semibold text-slate-300 hover:text-white bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/60 rounded-lg transition-all">${escapeHtml(t('cancel'))}</button>
+                <button type="button" data-action="save" class="px-3 py-1.5 text-xs sm:text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-500 rounded-lg transition-all">${escapeHtml(t('save'))}</button>
+              </div>
+            </li>`;
+        }
+        const tip = tagTooltip(tag);
+        const confirming = tag.id === pendingDeleteId;
+        return `
+          <li data-tag-id="${id}" class="flex items-center gap-3 rounded-xl border border-slate-800 bg-slate-950/50 hover:border-slate-700 px-3 py-2 transition-all">
+            <div class="flex-1 min-w-0">
+              <p class="font-mono text-xs sm:text-sm text-slate-100 break-words">${escapeHtml(tag.text)}</p>
+              ${tip ? `<p class="text-xs sm:text-sm text-slate-400 break-words">${escapeHtml(tip)}</p>` : ''}
+            </div>
+            <div class="flex items-center gap-1 shrink-0">
+              <button type="button" data-action="edit" class="${ICON_BTN_CLASS}" title="${escapeHtml(t('edit'))}" aria-label="${escapeHtml(t('edit'))}">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+              </button>
+              ${confirming
+                ? `<button type="button" data-action="confirm-delete" class="px-2.5 py-1 text-xs sm:text-sm font-bold text-white bg-rose-600 hover:bg-rose-500 rounded-lg transition-all">${escapeHtml(t('confirmDelete'))}</button>`
+                : `<button type="button" data-action="delete" class="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-slate-800 transition-all" title="${escapeHtml(t('deleteTag'))}" aria-label="${escapeHtml(t('deleteTag'))}">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                  </button>`}
+            </div>
+          </li>`;
+      }).join('');
+
+      if (editingTagId) {
+        const input = tagManageList.querySelector('.tag-edit-text');
+        if (input) input.focus();
+      }
+    }
+
+    function refreshTags() {
+      saveTags();
+      renderChips();
+      if (!tagModal.classList.contains('hidden')) renderTagManager();
+    }
+
+    function isDuplicateTag(text, ignoreId = null) {
+      const key = tagKey(text);
+      return state.tags.some(tag => tag.id !== ignoreId && tagKey(tag.text) === key);
+    }
+
+    function openTagModal() {
+      editingTagId = null;
+      pendingDeleteId = null;
+      tagAddError.classList.add('hidden');
+      tagManageSearch.value = '';
+      renderTagManager();
+      tagModal.classList.remove('hidden');
+      document.body.classList.add('overflow-hidden');
+      tagAddText.focus();
+    }
+
+    function closeTagModal() {
+      tagModal.classList.add('hidden');
+      document.body.classList.remove('overflow-hidden');
+      editingTagId = null;
+      pendingDeleteId = null;
+      manageTagsBtn.focus();
+    }
+
+    function showAddError(msg) {
+      tagAddError.textContent = msg;
+      tagAddError.classList.remove('hidden');
+    }
+
+    tagAddForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const text = tagAddText.value.trim();
+      if (!text) return showAddError(t('tagEmptyError'));
+      if (isDuplicateTag(text)) return showAddError(t('tagDuplicateError'));
+      state.tags.push({ id: makeTagId(), text, note: tagAddNote.value.trim() });
+      tagAddText.value = '';
+      tagAddNote.value = '';
+      tagAddError.classList.add('hidden');
+      refreshTags();
+      tagManageList.scrollTop = tagManageList.scrollHeight;
+      tagAddText.focus();
+      showToast(t('toastTagAdded'));
+    });
+
+    tagAddText.addEventListener('input', () => tagAddError.classList.add('hidden'));
+
+    tagManageList.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-action]');
+      if (!btn) return;
+      const item = btn.closest('[data-tag-id]');
+      const id = item && item.dataset.tagId;
+      const tag = state.tags.find(x => x.id === id);
+      if (!tag) return;
+
+      switch (btn.dataset.action) {
+        case 'edit':
+          editingTagId = id;
+          pendingDeleteId = null;
+          renderTagManager();
+          break;
+        case 'cancel':
+          editingTagId = null;
+          renderTagManager();
+          break;
+        case 'save': {
+          const text = item.querySelector('.tag-edit-text').value.trim();
+          const note = item.querySelector('.tag-edit-note').value.trim();
+          const errEl = item.querySelector('.tag-edit-error');
+          const fail = (msg) => { errEl.textContent = msg; errEl.classList.remove('hidden'); };
+          if (!text) return fail(t('tagEmptyError'));
+          if (isDuplicateTag(text, id)) return fail(t('tagDuplicateError'));
+          // Editing the note turns a built-in translated tooltip into the user's own note.
+          if (note !== tagTooltip(tag)) {
+            tag.note = note;
+            delete tag.notes;
+          }
+          tag.text = text;
+          editingTagId = null;
+          refreshTags();
+          showToast(t('toastTagUpdated'));
+          break;
+        }
+        case 'delete':
+          pendingDeleteId = id;
+          renderTagManager();
+          break;
+        case 'confirm-delete':
+          state.tags = state.tags.filter(x => x.id !== id);
+          pendingDeleteId = null;
+          refreshTags();
+          showToast(t('toastTagDeleted'));
+          break;
+      }
+    });
+
+    tagManageList.addEventListener('keydown', (e) => {
+      if (!e.target.matches('.tag-edit-text, .tag-edit-note')) return;
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        e.target.closest('li').querySelector('[data-action="save"]').click();
+      } else if (e.key === 'Escape') {
+        e.stopPropagation();
+        editingTagId = null;
+        renderTagManager();
+      }
+    });
+
+    tagManageSearch.addEventListener('input', () => {
+      pendingDeleteId = null;
+      renderTagManager();
+    });
+
+    tagSearchInput.addEventListener('input', renderChips);
+
+    manageTagsBtn.addEventListener('click', openTagModal);
+    tagModalClose.addEventListener('click', closeTagModal);
+    tagModalBackdrop.addEventListener('click', closeTagModal);
+
+    // Export: download tags as a JSON backup file
+    tagExportBtn.addEventListener('click', () => {
+      const payload = {
+        type: TAGS_EXPORT_TYPE,
+        version: 1,
+        exportedAt: new Date().toISOString(),
+        tags: state.tags.map(({ text, note, notes }) => (notes ? { text, note, notes } : { text, note })),
+      };
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      const stamp = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+      a.href = url;
+      a.download = `minimax-h3-prompt-tags-${stamp}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      showToast(t('toastExported'));
+    });
+
+    // Import: merge tags from a JSON file, skipping duplicates
+    tagImportBtn.addEventListener('click', () => tagImportFile.click());
+
+    tagImportFile.addEventListener('change', async () => {
+      const file = tagImportFile.files && tagImportFile.files[0];
+      tagImportFile.value = '';
+      if (!file) return;
+      try {
+        const data = JSON.parse(await file.text());
+        const list = Array.isArray(data) ? data : (data && Array.isArray(data.tags) ? data.tags : null);
+        if (!list) throw new Error('No tag list found');
+        let added = 0;
+        let skipped = 0;
+        list.forEach(raw => {
+          const tag = normalizeTag(raw);
+          if (!tag) return;
+          if (isDuplicateTag(tag.text)) { skipped += 1; return; }
+          state.tags.push(tag);
+          added += 1;
+        });
+        refreshTags();
+        showToast(t('toastImported', { added, skipped }));
+      } catch (err) {
+        console.warn('Import failed', err);
+        showToast(t('toastImportFail'));
+      }
+    });
+
+    tagRestoreBtn.addEventListener('click', () => {
+      if (!window.confirm(t('confirmRestore'))) return;
+      state.tags = defaultTags();
+      editingTagId = null;
+      pendingDeleteId = null;
+      refreshTags();
+      showToast(t('toastRestored'));
+    });
+
+    function applyLanguage() {
+      document.documentElement.lang = currentLang;
+      document.title = t('docTitle');
+
+      document.querySelectorAll('[data-i18n]').forEach(el => {
+        el.textContent = t(el.dataset.i18n);
+      });
+      document.querySelectorAll('[data-i18n-title]').forEach(el => {
+        el.title = t(el.dataset.i18nTitle);
+      });
+      document.querySelectorAll('[data-i18n-aria]').forEach(el => {
+        el.setAttribute('aria-label', t(el.dataset.i18nAria));
+      });
+      document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+        el.placeholder = t(el.dataset.i18nPlaceholder);
+      });
+
+      if (!copyResetTimer) copyText.textContent = t('copy');
+
+      document.querySelectorAll('.lang-option').forEach(opt => {
+        const active = opt.dataset.lang === currentLang;
+        opt.setAttribute('aria-checked', String(active));
+        opt.className = `lang-option w-full text-left px-3 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all ${
+          active ? 'bg-indigo-600/30 text-indigo-100' : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+        }`;
+      });
+
+      renderTimeStepOptions();
+      renderChips();
+      if (!tagModal.classList.contains('hidden')) renderTagManager();
+      render();
+    }
+
+    function setLanguage(lang) {
+      if (!SUPPORTED_LANGS.includes(lang)) return;
+      currentLang = lang;
+      saveLang(lang);
+      applyLanguage();
+    }
+
+    function toggleLangMenu(open) {
+      const show = open ?? langMenu.classList.contains('hidden');
+      langMenu.classList.toggle('hidden', !show);
+      langBtn.setAttribute('aria-expanded', String(show));
+    }
+
+    langBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      toggleLangMenu();
+    });
+
+    langMenu.addEventListener('click', (e) => {
+      const opt = e.target.closest('.lang-option');
+      if (!opt) return;
+      setLanguage(opt.dataset.lang);
+      toggleLangMenu(false);
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('#lang-wrap')) toggleLangMenu(false);
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key !== 'Escape') return;
+      toggleLangMenu(false);
+      if (!tagModal.classList.contains('hidden')) closeTagModal();
+    });
+
+    // ---------------------------------------------------------------------
     // Global Event Listeners
+    // ---------------------------------------------------------------------
     addShotBtn.addEventListener('click', addShot);
     addShotBottomBtn.addEventListener('click', addShot);
 
@@ -594,17 +1579,17 @@
       musicInput.value = 'N/A';
       state.activeShotIndex = 0;
       render();
-      showToast('已重置為預設範例！');
+      showToast(t('toastReset'));
     });
 
     soundscapeInput.addEventListener('input', (e) => {
       state.overallSoundscape = e.target.value;
-      render();
+      refreshDerived();
     });
 
     musicInput.addEventListener('input', (e) => {
       state.nonDiegeticMusic = e.target.value;
-      render();
+      refreshDerived();
     });
 
     timeStepSelect.addEventListener('change', (e) => {
@@ -613,30 +1598,51 @@
 
     autoPeriodCheck.addEventListener('change', (e) => {
       state.autoPeriod = e.target.checked;
-      render();
+      refreshDerived();
     });
 
     copyBtn.addEventListener('click', copyPromptToClipboard);
 
-    // Prompt Chips Click Listener
-    document.querySelectorAll('.prompt-chip').forEach(chip => {
-      chip.addEventListener('click', (e) => {
-        const textToAppend = e.target.textContent.trim();
-        const activeShot = state.shots[state.activeShotIndex];
-        
-        if (activeShot) {
-          if (activeShot.description.length > 0 && !activeShot.description.endsWith(' ')) {
-            activeShot.description += ', ';
-          }
-          activeShot.description += textToAppend;
-          render();
-          showToast(`已新增提示詞至 [Shot ${state.activeShotIndex + 1}]`);
+    // Prompt Chips Click Listener (delegated, chips are re-rendered on language change)
+    chipsListEl.addEventListener('click', (e) => {
+      const chip = e.target.closest('.prompt-chip');
+      if (!chip) return;
+      const textToAppend = chip.textContent.trim();
+      const activeShot = state.shots[state.activeShotIndex];
+
+      if (activeShot) {
+        if (activeShot.description.length > 0 && !activeShot.description.endsWith(' ')) {
+          activeShot.description += ', ';
         }
-      });
+        activeShot.description += textToAppend;
+        render();
+        showToast(t('toastChip'));
+      }
     });
 
+    // Drag-and-drop reordering (SortableJS). The up/down buttons keep working
+    // if the CDN script fails to load.
+    if (window.Sortable) {
+      Sortable.create(shotsListEl, {
+        handle: '.drag-handle',
+        draggable: '.shot-card',
+        animation: 180,
+        ghostClass: 'sortable-ghost',
+        onEnd: (evt) => {
+          const { oldIndex, newIndex } = evt;
+          if (oldIndex === newIndex || oldIndex == null || newIndex == null) return;
+          const activeId = state.shots[state.activeShotIndex] && state.shots[state.activeShotIndex].id;
+          const [moved] = state.shots.splice(oldIndex, 1);
+          state.shots.splice(newIndex, 0, moved);
+          const activeIdx = state.shots.findIndex(shot => shot.id === activeId);
+          state.activeShotIndex = activeIdx >= 0 ? activeIdx : newIndex;
+          render();
+        },
+      });
+    }
+
     // Initial Launch Render
-    render();
+    applyLanguage();
   </script>
 </body>
 </html>
