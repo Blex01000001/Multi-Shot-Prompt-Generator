@@ -6,7 +6,7 @@
 
 **MiniMax H3 多鏡頭圖生影片提示詞產生器**：一個純前端靜態網頁應用程式，用來把多個鏡頭（Shot）的時間戳記與描述，組合成 MiniMax H3 圖生影片（Image-to-Video）模型可使用的結構化 Prompt。
 
-- 單一檔案：`index.html`（HTML + CSS + JavaScript 全部內嵌）
+- 檔案：`index.html`（畫面結構）、`css/style.css`（自訂樣式）、`js/tailwind-config.js`、`js/app.js`（全部程式邏輯）
 - 無建置流程、無後端、無套件管理器，直接用瀏覽器開啟即可執行
 - 可直接部署到 GitHub Pages（主檔必須維持命名為 `index.html`）
 
@@ -96,7 +96,7 @@ non_diegetic_music: <背景音樂，預設 N/A>
 - 直接以瀏覽器開啟 `index.html`，或啟動本機伺服器：`python3 -m http.server 8000`，再前往 `http://localhost:8000`。
 - 沒有自動化測試；修改後請手動確認：新增／刪除／複製鏡頭、上下移與拖曳排序、時間微調、時間戳記錯誤提示、空白鏡頭略過與重新編號、標籤插入／搜尋／新增／編輯／刪除／匯出／匯入、三種語言切換、預覽輸出格式與複製功能皆正常，並檢查手機寬度（約 390px）不會出現水平捲動。
 - 剪貼簿 API 需要安全環境：`https://`、`http://localhost` 或直接開啟檔案（`file://`）都可以。
-- 保持單一檔案架構，除非使用者要求，不要引入建置工具或拆分檔案。
+- 不要引入建置工具；JS 一律用一般 `<script src>` 載入（不要用 `type="module"`，否則直接雙擊開啟 `file://` 會失效）。
 
 ## 每次 commit 後的回報規則
 
