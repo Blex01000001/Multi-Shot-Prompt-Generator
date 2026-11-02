@@ -1,0 +1,253 @@
+// =============================================================================
+// core.js — pure logic (no DOM, no localStorage)
+//
+// Everything here takes plain data and returns plain data, so it is covered by
+// fast Node unit tests (tests/unit/core.test.js). Put new logic here whenever
+// it does not need the page; keep DOM code in shots.js / tags.js / app.js.
+//
+// Loads in the browser (top-level names become globals shared with the other
+// scripts) and in Node (module.exports at the bottom).
+// =============================================================================
+
+// -----------------------------------------------------------------------------
+// Timestamps (MM:SS.mmm)
+// -----------------------------------------------------------------------------
+const TIMESTAMP_RE = /^\d{2}:[0-5]\d\.\d{3}$/;
+
+// Time-step options offered when adding / duplicating a shot (seconds).
+const TIME_STEPS = [0.8, 1, 1.5, 2, 3];
+
+// Format seconds into a MM:SS.mmm timestamp string.
+function formatTimestamp(totalSeconds) {
+  const totalMs = Math.round(totalSeconds * 1000);
+  const mins = Math.floor(totalMs / 60000);
+  const secs = (totalMs % 60000) / 1000;
+  const minsStr = String(mins).padStart(2, '0');
+  const secsStr = secs.toFixed(3).padStart(6, '0');
+  return `${minsStr}:${secsStr}`;
+}
+
+// Parse MM:SS.mmm into seconds. Lenient: anything unparsable becomes 0.
+function parseTimestamp(tsString) {
+  const parts = String(tsString).trim().split(':');
+  if (parts.length === 2) {
+    const m = parseFloat(parts[0]) || 0;
+    const s = parseFloat(parts[1]) || 0;
+    return m * 60 + s;
+  }
+  return 0;
+}
+
+function isValidTimestamp(tsString) {
+  return TIMESTAMP_RE.test(String(tsString).trim());
+}
+
+// -----------------------------------------------------------------------------
+// Shots → output numbering, validation, prompt text
+// A shot is { id, timestamp, description }.
+// -----------------------------------------------------------------------------
+
+// For every shot returns { outNum, error }:
+//  - outNum: number in the output ([Shot N]); null for empty shots (skipped).
+//  - error:  null | { type: 'invalid' } | { type: 'order', prevNum, prevTs }
+// Format is checked for every shot; ordering only between consecutive
+// exported (non-empty) shots, and the later one must be strictly greater.
+function analyzeShots(shots) {
+  let outNum = 0;
+  let prev = null;
+  return shots.map(shot => {
+    const text = shot.description.trim();
+    const ts = shot.timestamp.trim();
+    const info = { outNum: null, error: null };
+
+    if (!isValidTimestamp(ts)) {
+      info.error = { type: 'invalid' };
+    }
+
+    if (text.length === 0) return info;
+
+    outNum += 1;
+    info.outNum = outNum;
+
+    if (!info.error) {
+      const secs = parseTimestamp(ts);
+      if (prev && secs <= prev.secs) {
+        info.error = { type: 'order', prevNum: prev.outNum, prevTs: prev.ts };
+      }
+      prev = { secs, outNum, ts };
+    }
+    return info;
+  });
+}
+
+// Build the MiniMax H3 prompt. See "輸出格式" in CLAUDE.md — do not change the
+// format without asking the user.
+//   integrated_multimodal_description: [Shot 1] At 00:00.000, text. [Shot 2] ...
+//
+//   overall_soundscape: ...
+//   non_diegetic_music: ...
+function buildPrompt({ shots, autoPeriod, overallSoundscape, nonDiegeticMusic }) {
+  const parts = [];
+
+  shots.forEach(shot => {
+    let text = shot.description.trim();
+    if (text.length === 0) return; // empty shots are skipped, the rest renumbered
+
+    if (autoPeriod && !text.endsWith('.')) {
+      text += '.';
+    }
+
+    parts.push(`[Shot ${parts.length + 1}] At ${shot.timestamp.trim()}, ${text}`);
+  });
+
+  const soundscape = (overallSoundscape || '').trim() || 'N/A';
+  const music = (nonDiegeticMusic || '').trim() || 'N/A';
+
+  return `integrated_multimodal_description: ${parts.join(' ')}\n\noverall_soundscape: ${soundscape}\nnon_diegetic_music: ${music}`;
+}
+
+// Append a prompt tag to a shot description (", " separated).
+function appendTagText(description, tagText) {
+  if (description.length > 0 && !description.endsWith(' ')) {
+    return `${description}, ${tagText}`;
+  }
+  return description + tagText;
+}
+
+// -----------------------------------------------------------------------------
+// HTML
+// -----------------------------------------------------------------------------
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+// -----------------------------------------------------------------------------
+// Prompt tags
+// A tag is { id, text, note, notes? }:
+//  - text:  sent to the model (English)
+//  - note:  the user's own tooltip text
+//  - notes: built-in translations { 'zh-Hant': ..., ja: ... } used when note is empty
+// -----------------------------------------------------------------------------
+const TAG_LANGS = ['en', 'zh-Hant', 'ja'];
+const TAGS_EXPORT_TYPE = 'minimax-h3-prompt-tags';
+
+const DEFAULT_TAGS = [
+  { text: 'pouting with flushed cheeks', notes: { 'zh-Hant': '傲嬌鼓嘴臉紅', ja: '頬を赤らめてふくれっ面' } },
+  { text: 'looking back over her shoulder', notes: { 'zh-Hant': '轉頭回眸看', ja: '肩越しに振り返る' } },
+  { text: 'camera slowly pushes in', notes: { 'zh-Hant': '鏡頭緩慢推進', ja: 'カメラがゆっくり寄る' } },
+  { text: 'smoothly orbits around to her back', notes: { 'zh-Hant': '平滑環繞到身後', ja: '背後へ滑らかに回り込む' } },
+  { text: 'panting and breathing rapidly', notes: { 'zh-Hant': '喘氣急促呼吸', ja: '息を切らして荒く呼吸する' } },
+  { text: 'winks shyly with one eye closed', notes: { 'zh-Hant': '害羞閉單眼', ja: '恥ずかしそうに片目をつぶる' } },
+  { text: 'viscous clear liquid slowly drips', notes: { 'zh-Hant': '黏稠透明液體緩慢滴落', ja: '粘り気のある透明な液体がゆっくり滴る' } },
+  { text: 'stretches into thin strands', notes: { 'zh-Hant': '拉成細絲狀', ja: '細い糸状に伸びる' } },
+  { text: 'low-angle shot looking up', notes: { 'zh-Hant': '仰角向上拍攝', ja: 'ローアングルで見上げる' } },
+  { text: 'lifting skirt and swaying back and forth', notes: { 'zh-Hant': '拉起裙襬搖擺', ja: 'スカートを持ち上げて左右に揺れる' } },
+];
+
+function makeTagId() {
+  return 'tag-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8);
+}
+
+// Normalise anything tag-like (string or object) into a tag; null if unusable.
+function normalizeTag(raw) {
+  if (typeof raw === 'string') raw = { text: raw };
+  if (!raw || typeof raw !== 'object' || typeof raw.text !== 'string') return null;
+  const text = raw.text.trim();
+  if (!text) return null;
+  const tag = { id: makeTagId(), text, note: typeof raw.note === 'string' ? raw.note.trim() : '' };
+  if (raw.notes && typeof raw.notes === 'object') {
+    const notes = {};
+    TAG_LANGS.forEach(lang => {
+      if (typeof raw.notes[lang] === 'string' && raw.notes[lang].trim()) notes[lang] = raw.notes[lang].trim();
+    });
+    if (Object.keys(notes).length) tag.notes = notes;
+  }
+  return tag;
+}
+
+function defaultTags() {
+  return DEFAULT_TAGS.map(normalizeTag);
+}
+
+// Strip ids for storage / export.
+function serializeTags(tags) {
+  return tags.map(({ text, note, notes }) => (notes ? { text, note, notes } : { text, note }));
+}
+
+function buildTagExport(tags, now = new Date()) {
+  return {
+    type: TAGS_EXPORT_TYPE,
+    version: 1,
+    exportedAt: now.toISOString(),
+    tags: serializeTags(tags),
+  };
+}
+
+function tagKey(text) {
+  return text.trim().toLowerCase();
+}
+
+function isDuplicateTag(tags, text, ignoreId = null) {
+  const key = tagKey(text);
+  return tags.some(tag => tag.id !== ignoreId && tagKey(tag.text) === key);
+}
+
+// Merge an imported JSON value (export object, or plain array of strings /
+// { text, note } objects) into `tags`. Duplicates (case-insensitive) are skipped.
+// Returns { tags, added, skipped }; throws if `data` holds no tag list.
+function mergeImportedTags(tags, data) {
+  const list = Array.isArray(data) ? data : (data && Array.isArray(data.tags) ? data.tags : null);
+  if (!list) throw new Error('No tag list found');
+  const result = tags.slice();
+  let added = 0;
+  let skipped = 0;
+  list.forEach(raw => {
+    const tag = normalizeTag(raw);
+    if (!tag) return;
+    if (isDuplicateTag(result, tag.text)) { skipped += 1; return; }
+    result.push(tag);
+    added += 1;
+  });
+  return { tags: result, added, skipped };
+}
+
+function tagTooltip(tag, lang) {
+  return tag.note || (tag.notes && tag.notes[lang]) || '';
+}
+
+function tagMatches(tag, query) {
+  const q = (query || '').trim().toLowerCase();
+  if (!q) return true;
+  const haystack = [tag.text, tag.note, ...(tag.notes ? Object.values(tag.notes) : [])].join(' ').toLowerCase();
+  return haystack.includes(q);
+}
+
+if (typeof module === 'object' && module.exports) {
+  module.exports = {
+    TIMESTAMP_RE,
+    TIME_STEPS,
+    formatTimestamp,
+    parseTimestamp,
+    isValidTimestamp,
+    analyzeShots,
+    buildPrompt,
+    appendTagText,
+    escapeHtml,
+    TAG_LANGS,
+    TAGS_EXPORT_TYPE,
+    DEFAULT_TAGS,
+    normalizeTag,
+    defaultTags,
+    serializeTags,
+    buildTagExport,
+    tagKey,
+    isDuplicateTag,
+    mergeImportedTags,
+    tagTooltip,
+    tagMatches,
+  };
+}

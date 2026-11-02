@@ -1,0 +1,332 @@
+// =============================================================================
+// shots.js — shot cards: rendering, per-card events, add/delete/duplicate/move,
+// drag-and-drop sorting. Pure logic it relies on lives in core.js.
+// =============================================================================
+
+function errorMessage(error) {
+  if (!error) return '';
+  if (error.type === 'invalid') return t('tsInvalid');
+  return t('tsOrder', { prev: `[Shot ${error.prevNum}]`, ts: error.prevTs });
+}
+
+// Adjust timestamp in milliseconds
+function adjustShotTime(index, deltaMs) {
+  const shot = state.shots[index];
+  const currentSecs = parseTimestamp(shot.timestamp);
+  const newSecs = Math.max(0, currentSecs + deltaMs / 1000);
+  shot.timestamp = formatTimestamp(newSecs);
+  render();
+}
+
+// Reorder Shots
+function moveShot(index, direction) {
+  const targetIndex = index + direction;
+  if (targetIndex < 0 || targetIndex >= state.shots.length) return;
+  const temp = state.shots[index];
+  state.shots[index] = state.shots[targetIndex];
+  state.shots[targetIndex] = temp;
+  state.activeShotIndex = targetIndex;
+  render();
+}
+
+// ---------------------------------------------------------------------
+// Rendering
+// ---------------------------------------------------------------------
+const TS_BOX_BASE = 'ts-box inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 font-mono text-xs sm:text-sm transition-colors';
+const TS_BOX_OK = 'bg-slate-950 border-slate-700/80 focus-within:border-indigo-500';
+const TS_BOX_ERR = 'bg-rose-950/40 border-rose-500 ring-1 ring-rose-500/60';
+
+function adjustButton(index, delta) {
+  const positive = delta > 0;
+  const color = positive
+    ? 'hover:bg-emerald-950/80 text-emerald-300 hover:border-emerald-500/60'
+    : 'hover:bg-rose-950/80 text-rose-300 hover:border-rose-500/60';
+  const title = positive ? t('adjustPlus', { n: delta }) : t('adjustMinus', { n: Math.abs(delta) });
+  const label = `${positive ? '+' : '-'}${Math.abs(delta)}ms`;
+  return `<button data-index="${index}" data-delta="${delta}" title="${escapeHtml(title)}" class="time-adjust-btn px-1.5 py-1 text-[11px] sm:text-xs font-mono font-semibold bg-slate-800/80 border border-slate-700/60 ${color} rounded transition-all active:scale-95">${label}</button>`;
+}
+
+function render() {
+  // 1. Render Shots Cards
+  shotsListEl.innerHTML = '';
+  state.shots.forEach((shot, index) => {
+    const card = document.createElement('div');
+    card.dataset.index = index;
+    card.className = `shot-card glass-panel rounded-2xl p-5 border transition-all duration-200 ${
+      state.activeShotIndex === index
+        ? 'border-indigo-500/80 bg-slate-900/90 shadow-md shadow-indigo-500/10'
+        : 'border-slate-800 hover:border-slate-700'
+    }`;
+
+    card.innerHTML = `
+      <div class="pb-3.5 mb-3.5 border-b border-slate-800/80">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <!-- Left: Shot Tag, Timestamp Input, and Fine-tune Buttons -->
+          <div class="flex flex-wrap items-center gap-2">
+            <button type="button" class="drag-handle -ml-2 p-1 text-slate-500 hover:text-indigo-300 cursor-grab active:cursor-grabbing rounded-md transition-colors" title="${escapeHtml(t('dragHandle'))}" aria-label="${escapeHtml(t('dragHandle'))}">
+              <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M7 4a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zm0 6a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zm-1.5 7.5a1.5 1.5 0 100-3 1.5 1.5 0 000 3zM16 4a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zm-1.5 7.5a1.5 1.5 0 100-3 1.5 1.5 0 000 3zM16 16a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z"/></svg>
+            </button>
+            <span class="shot-label px-2.5 py-1 rounded-lg border font-mono text-xs sm:text-sm font-bold"></span>
+
+            <label class="${TS_BOX_BASE} ${TS_BOX_OK}">
+              <span class="text-slate-500 select-none">At</span>
+              <input type="text" data-index="${index}" data-field="timestamp" value="${escapeHtml(shot.timestamp)}"
+                size="9" maxlength="9" spellcheck="false" autocomplete="off" inputmode="decimal"
+                class="shot-input ts-input bg-transparent p-0 border-0 font-mono text-xs sm:text-sm text-indigo-200 focus:outline-none focus:ring-0">
+            </label>
+
+            <!-- Timestamp Fine-tune Buttons (+/- 100ms, +/- 500ms) -->
+            <div class="flex items-center gap-1 bg-slate-950/80 p-1 rounded-lg border border-slate-800">
+              ${adjustButton(index, -500)}
+              ${adjustButton(index, -100)}
+              ${adjustButton(index, 100)}
+              ${adjustButton(index, 500)}
+            </div>
+          </div>
+
+          <!-- Right: Move Up/Down, Duplicate, Delete -->
+          <div class="flex items-center gap-0.5">
+            <button data-index="${index}" data-dir="-1" class="move-shot-btn p-1.5 text-slate-400 hover:text-indigo-300 hover:bg-slate-800 rounded-lg transition-all ${index === 0 ? 'opacity-30 cursor-not-allowed' : ''}" title="${escapeHtml(t('moveUp'))}">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"></path></svg>
+            </button>
+            <button data-index="${index}" data-dir="1" class="move-shot-btn p-1.5 text-slate-400 hover:text-indigo-300 hover:bg-slate-800 rounded-lg transition-all ${index === state.shots.length - 1 ? 'opacity-30 cursor-not-allowed' : ''}" title="${escapeHtml(t('moveDown'))}">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+            </button>
+            <button data-index="${index}" class="duplicate-shot-btn p-1.5 text-slate-400 hover:text-indigo-300 hover:bg-slate-800 rounded-lg transition-all" title="${escapeHtml(t('duplicate'))}">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+              </svg>
+            </button>
+            ${state.shots.length > 1 ? `
+              <button data-index="${index}" class="delete-shot-btn p-1.5 text-slate-400 hover:text-rose-400 hover:bg-slate-800 rounded-lg transition-all" title="${escapeHtml(t('delete'))}">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                </svg>
+              </button>
+            ` : ''}
+          </div>
+        </div>
+
+        <!-- Empty shot note -->
+        <p class="shot-skip hidden mt-2.5 text-xs sm:text-sm font-medium text-slate-400 flex items-center gap-1.5">
+          <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+          </svg>
+          <span>${escapeHtml(t('skipped'))}</span>
+        </p>
+
+        <!-- Timestamp error message -->
+        <p class="ts-error hidden mt-2.5 text-xs sm:text-sm font-semibold text-rose-300 flex items-center gap-1.5">
+          <svg class="w-4 h-4 shrink-0 text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"></path>
+          </svg>
+          <span class="ts-error-text"></span>
+        </p>
+      </div>
+
+      <div>
+        <textarea data-index="${index}" data-field="description" rows="3" style="min-height: 110px;"
+          placeholder="${escapeHtml(t('placeholder'))}"
+          class="shot-input w-full bg-slate-950/80 border border-slate-800 focus:border-indigo-500/80 rounded-xl p-3.5 text-xs sm:text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-indigo-500/50 resize-y font-sans leading-relaxed">${escapeHtml(shot.description)}</textarea>
+      </div>
+    `;
+
+    shotsListEl.appendChild(card);
+  });
+
+  // Update Shot Counter
+  shotCountBadgeEl.textContent = state.shots.length;
+
+  // Attach Event Listeners to newly rendered inputs
+  attachShotEvents();
+
+  // 2. Labels, validation and live output
+  refreshDerived();
+}
+
+// Update everything that depends on shot content without rebuilding the
+// cards (keeps focus / caret while typing).
+function refreshDerived() {
+  const analysis = analyzeShots(state.shots);
+  const cards = shotsListEl.querySelectorAll('.shot-card');
+  let errorCount = 0;
+  let exported = 0;
+
+  cards.forEach((card, index) => {
+    const info = analysis[index];
+    if (!info) return;
+
+    const label = card.querySelector('.shot-label');
+    const skip = card.querySelector('.shot-skip');
+    const tsBox = card.querySelector('.ts-box');
+    const tsInput = card.querySelector('.ts-input');
+    const errEl = card.querySelector('.ts-error');
+    const errText = card.querySelector('.ts-error-text');
+
+    if (info.outNum) {
+      exported += 1;
+      label.textContent = `[Shot ${info.outNum}]`;
+      label.className = 'shot-label px-2.5 py-1 rounded-lg border font-mono text-xs sm:text-sm font-bold bg-indigo-500/10 border-indigo-500/30 text-indigo-300';
+      skip.classList.add('hidden');
+    } else {
+      label.textContent = '[Shot –]';
+      label.className = 'shot-label px-2.5 py-1 rounded-lg border font-mono text-xs sm:text-sm font-bold bg-slate-800/60 border-slate-700/60 text-slate-400';
+      skip.classList.remove('hidden');
+    }
+
+    if (info.error) {
+      errorCount += 1;
+      tsBox.className = `${TS_BOX_BASE} ${TS_BOX_ERR}`;
+      tsInput.classList.replace('text-indigo-200', 'text-rose-200');
+      tsInput.setAttribute('aria-invalid', 'true');
+      errText.textContent = errorMessage(info.error);
+      errEl.classList.remove('hidden');
+    } else {
+      tsBox.className = `${TS_BOX_BASE} ${TS_BOX_OK}`;
+      tsInput.classList.replace('text-rose-200', 'text-indigo-200');
+      tsInput.removeAttribute('aria-invalid');
+      errEl.classList.add('hidden');
+    }
+  });
+
+  exportedCountEl.textContent = exported === state.shots.length ? '' : t('exportedCount', { n: exported });
+
+  if (errorCount > 0) {
+    tsWarningTextEl.textContent = t('tsSummary', { n: errorCount });
+    tsWarningEl.classList.remove('hidden');
+  } else {
+    tsWarningEl.classList.add('hidden');
+  }
+
+  const fullPrompt = currentPrompt();
+  outputPreviewEl.textContent = fullPrompt;
+  charCountEl.textContent = t('chars', { n: fullPrompt.length });
+}
+
+function setActiveShot(index) {
+  if (state.activeShotIndex === index) return;
+  state.activeShotIndex = index;
+  shotsListEl.querySelectorAll('.shot-card').forEach((card, i) => {
+    const active = i === index;
+    card.classList.toggle('border-indigo-500/80', active);
+    card.classList.toggle('bg-slate-900/90', active);
+    card.classList.toggle('shadow-md', active);
+    card.classList.toggle('shadow-indigo-500/10', active);
+    card.classList.toggle('border-slate-800', !active);
+    card.classList.toggle('hover:border-slate-700', !active);
+  });
+}
+
+// Attach Event Listeners to Input Fields inside Dynamic Cards
+function attachShotEvents() {
+  document.querySelectorAll('.shot-input').forEach(input => {
+    input.addEventListener('focus', (e) => {
+      setActiveShot(parseInt(e.target.dataset.index));
+    });
+
+    input.addEventListener('input', (e) => {
+      const idx = parseInt(e.target.dataset.index);
+      const field = e.target.dataset.field;
+      state.shots[idx][field] = e.target.value;
+      refreshDerived();
+    });
+  });
+
+  // Time Fine-tune Buttons
+  document.querySelectorAll('.time-adjust-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const idx = parseInt(e.currentTarget.dataset.index);
+      const delta = parseInt(e.currentTarget.dataset.delta);
+      adjustShotTime(idx, delta);
+    });
+  });
+
+  // Move Up / Move Down Buttons
+  document.querySelectorAll('.move-shot-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const idx = parseInt(e.currentTarget.dataset.index);
+      const dir = parseInt(e.currentTarget.dataset.dir);
+      moveShot(idx, dir);
+    });
+  });
+
+  // Delete Shot Buttons
+  document.querySelectorAll('.delete-shot-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const idx = parseInt(e.currentTarget.dataset.index);
+      deleteShot(idx);
+    });
+  });
+
+  // Duplicate Shot Buttons
+  document.querySelectorAll('.duplicate-shot-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const idx = parseInt(e.currentTarget.dataset.index);
+      duplicateShot(idx);
+    });
+  });
+}
+
+// Add Shot Function
+function addShot() {
+  let nextTs = '00:00.000';
+  if (state.shots.length > 0) {
+    const lastTs = state.shots[state.shots.length - 1].timestamp;
+    const lastSecs = parseTimestamp(lastTs);
+    nextTs = formatTimestamp(lastSecs + state.timeStepSec);
+  }
+
+  state.shots.push({
+    id: nextShotId++,
+    timestamp: nextTs,
+    description: ''
+  });
+  state.activeShotIndex = state.shots.length - 1;
+  render();
+}
+
+// Delete Shot Function
+function deleteShot(index) {
+  if (state.shots.length <= 1) return;
+  state.shots.splice(index, 1);
+  state.activeShotIndex = Math.max(0, index - 1);
+  render();
+}
+
+// Duplicate Shot Function
+function duplicateShot(index) {
+  const target = state.shots[index];
+  const targetSecs = parseTimestamp(target.timestamp);
+  const nextTs = formatTimestamp(targetSecs + state.timeStepSec);
+
+  state.shots.splice(index + 1, 0, {
+    id: nextShotId++,
+    timestamp: nextTs,
+    description: target.description
+  });
+  state.activeShotIndex = index + 1;
+  render();
+}
+
+function initShotSorting() {
+  // Drag-and-drop reordering (SortableJS). The up/down buttons keep working
+  // if the CDN script fails to load.
+  if (window.Sortable) {
+    Sortable.create(shotsListEl, {
+      handle: '.drag-handle',
+      draggable: '.shot-card',
+      animation: 180,
+      ghostClass: 'sortable-ghost',
+      onEnd: (evt) => {
+        const { oldIndex, newIndex } = evt;
+        if (oldIndex === newIndex || oldIndex == null || newIndex == null) return;
+        const activeId = state.shots[state.activeShotIndex] && state.shots[state.activeShotIndex].id;
+        const [moved] = state.shots.splice(oldIndex, 1);
+        state.shots.splice(newIndex, 0, moved);
+        const activeIdx = state.shots.findIndex(shot => shot.id === activeId);
+        state.activeShotIndex = activeIdx >= 0 ? activeIdx : newIndex;
+        render();
+      },
+    });
+  }
+}
