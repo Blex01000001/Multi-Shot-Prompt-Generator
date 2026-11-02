@@ -6,7 +6,7 @@
 
 **MiniMax H3 多鏡頭圖生影片提示詞產生器**：一個純前端靜態網頁應用程式，用來把多個鏡頭（Shot）的時間戳記與描述，組合成 MiniMax H3 圖生影片（Image-to-Video）模型可使用的結構化 Prompt。
 
-- 檔案：`index.html`（畫面結構）、`css/style.css`（自訂樣式）、`js/tailwind-config.js`、`js/app.js`（全部程式邏輯）
+- 檔案：`index.html`（畫面結構）、`css/style.css`、`js/*.js`（依職責拆分，載入順序：`core` → `i18n` → `state` → `shots` → `tags` → `app`）
 - 無建置流程、無後端、無套件管理器，直接用瀏覽器開啟即可執行
 - 可直接部署到 GitHub Pages（主檔必須維持命名為 `index.html`）
 
