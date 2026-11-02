@@ -18,6 +18,7 @@
 | `tests/unit/*.test.js` | Node 單元測試（`core.js`、`i18n.js` 一致性） | 改 `core.js` 時同步補測試 |
 | `tests/e2e/app.test.js` | Playwright 瀏覽器測試 | 新增 UI 功能時補測試 |
 | `tests/e2e/screenshots.js` | 主要畫面截圖 | 新增畫面狀態時加一筆 |
+| `README.md`、`docs/screenshot.png` | 給使用者看的英文介紹、工具連結、截圖 | 功能或輸出格式改變時同步更新 |
 
 每個 `js/*.js` 開頭都有註解說明職責；函式細節以程式碼與註解為準，不在此重複。
 
