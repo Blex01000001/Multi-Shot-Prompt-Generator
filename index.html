@@ -429,6 +429,7 @@
         }
 
         // Format: [Shot X] At <timestamp>, <description>
+        if (index > 0) descString += ' ';
         descString += `[Shot ${index + 1}] At ${shot.timestamp.trim()}, ${text}`;
       });
 
@@ -554,7 +555,7 @@
         copyBtn.classList.add('bg-emerald-600');
 
         setTimeout(() => {
-          copyText.textContent = '複製完整的 Prompt';
+          copyText.textContent = '複製 Prompt';
           copyBtn.classList.remove('bg-emerald-600');
           copyBtn.classList.add('from-indigo-600', 'to-purple-600');
         }, 2000);

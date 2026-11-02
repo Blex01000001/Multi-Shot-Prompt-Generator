@@ -31,7 +31,7 @@
 `generateFormattedOutput()` 產生的字串格式：
 
 ```
-integrated_multimodal_description: [Shot 1] At 00:00.000, <描述>.[Shot 2] At 00:01.000, <描述>.
+integrated_multimodal_description: [Shot 1] At 00:00.000, <描述>. [Shot 2] At 00:01.000, <描述>.
 
 overall_soundscape: <環境音效，預設 N/A>
 non_diegetic_music: <背景音樂，預設 N/A>
@@ -39,6 +39,7 @@ non_diegetic_music: <背景音樂，預設 N/A>
 
 - 時間戳記格式為 `MM:SS.mmm`，由 `formatTimestamp()` / `parseTimestamp()` 互相轉換。
 - 「自動格式優化」開啟時（`state.autoPeriod`），描述結尾若無句點會自動補上 `.`。
+- 各鏡頭之間以一個半形空格分隔。
 - 修改此格式前，應先與使用者確認，因為它對應 MiniMax H3 的 Prompt 結構。
 
 ## 程式結構（`index.html` 內的 `<script>`）
