@@ -72,7 +72,10 @@ test('timestamp problems are highlighted and cleared when fixed', async () => {
   await timestamps(page).nth(1).fill('0:1');
   assert.match(await page.locator('.ts-error:visible .ts-error-text').first().textContent(), /Invalid timestamp/);
   // typing must not steal focus (cards are not re-rendered while typing)
-  assert.equal(await page.evaluate(() => document.activeElement.dataset.index), '1');
+  assert.deepEqual(await page.evaluate(() => {
+    const el = document.activeElement;
+    return [el.closest('.shot-card').dataset.index, el.dataset.field];
+  }), ['1', 'timestamp']);
 
   await timestamps(page).nth(1).fill('00:01.500');
   assert.equal(await page.locator('#ts-warning').isVisible(), false);

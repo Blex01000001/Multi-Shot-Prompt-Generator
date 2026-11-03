@@ -182,5 +182,5 @@ syncAudioInputs();
 initGlobalControls();
 initLanguageMenu();
 initTags();
-initShotSorting();
+initShots();
 applyLanguage();

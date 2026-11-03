@@ -32,7 +32,6 @@ npm run screenshots   # 產生 test-results/screenshots/*.png；改到外觀時�
 ```
 
 - 測試輸出只有點（`.` 通過、`X` 失敗）與失敗細節，結束碼非 0 即失敗；要看每個測試名稱用 `npm run test:verbose`。
-
 - 第一次使用先 `npm install`（只裝測試工具：playwright、tailwindcss、sortablejs；雲端 session 由 SessionStart hook 自動執行）。裝好後測試會用本機的 Tailwind／SortableJS，**不需要連 CDN**（雲端環境連不到 `cdn.tailwindcss.com` 時也能測）。
 - 只跑部分測試：`npm run test:e2e -- --test-name-pattern=tag`；只截部分圖：`npm run screenshots -- zh`。
 - 測試必須全部通過才 commit；不可為了通過而跳過或刪除測試。
@@ -41,6 +40,7 @@ npm run screenshots   # 產生 test-results/screenshots/*.png；改到外觀時�
 
 - **新增介面文字**：在 `js/i18n.js` 的 `MESSAGES` 加一筆 `key: { en, 'zh-Hant', ja }`，HTML 用 `data-i18n="key"`（另有 `-title`／`-aria`／`-placeholder`），JS 用 `t('key')`。`npm test` 會檢查三語齊全、`{n}` 參數一致、沒有不存在或未使用的鍵。
 - **新增邏輯**：能不碰 DOM 的就寫進 `core.js` 並在 `tests/unit/core.test.js` 加測試，UI 檔只負責呼叫與顯示。
+- **鏡頭卡片新增按鈕**：在 `render()` 的樣板加 `data-action="…"`，再到 `handleShotClick()` 加一個 `case`（事件綁在清單上，只綁一次；卡片用 `data-index` 表示是第幾個鏡頭）。
 - **新增全域名稱**：所有 `js/*.js` 是共用全域範圍的一般 script，**名稱不可重複**（重複會讓整頁壞掉）。新 DOM 參照放 `state.js`；事件綁定寫在各檔的 `init…()` 函式，由 `app.js` 呼叫，檔案載入時不要有副作用。
 - **新增外部函式庫**：從 jsDelivr／cdnjs 載入並固定版本（不可 `@latest`），失敗時要能退回（參考 `initShotSorting()` 的 `window.Sortable` 檢查）；同時加進 devDependencies 並在 `tests/e2e/helpers.js` 加本機路由。
 

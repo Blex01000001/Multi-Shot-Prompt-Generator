@@ -53,14 +53,14 @@ const LABEL_BASE = 'shot-label px-2.5 py-1 rounded-lg border font-mono text-xs s
 const LABEL_OUT = 'bg-indigo-500/10 border-indigo-500/30 text-indigo-300';
 const LABEL_SKIP = 'bg-slate-800/60 border-slate-700/60 text-slate-400';
 
-function adjustButton(index, delta) {
+function adjustButton(delta) {
   const positive = delta > 0;
   const color = positive
     ? 'hover:bg-emerald-950/80 text-emerald-300 hover:border-emerald-500/60'
     : 'hover:bg-rose-950/80 text-rose-300 hover:border-rose-500/60';
   const title = positive ? t('adjustPlus', { n: delta }) : t('adjustMinus', { n: Math.abs(delta) });
   const label = `${positive ? '+' : '-'}${Math.abs(delta)}ms`;
-  return `<button data-index="${index}" data-delta="${delta}" title="${escapeHtml(title)}" class="time-adjust-btn px-1.5 py-1 text-[11px] sm:text-xs font-mono font-semibold bg-slate-800/80 border border-slate-700/60 ${color} rounded transition-all active:scale-95">${label}</button>`;
+  return `<button type="button" data-action="nudge" data-delta="${delta}" title="${escapeHtml(title)}" class="time-adjust-btn px-1.5 py-1 text-[11px] sm:text-xs font-mono font-semibold bg-slate-800/80 border border-slate-700/60 ${color} rounded transition-all active:scale-95">${label}</button>`;
 }
 
 function render() {
@@ -87,33 +87,33 @@ function render() {
 
             <label class="${TS_BOX_BASE} ${TS_BOX_OK}">
               <span class="text-slate-500 select-none">At</span>
-              <input type="text" data-index="${index}" data-field="timestamp" value="${escapeHtml(shot.timestamp)}"
+              <input type="text" data-field="timestamp" value="${escapeHtml(shot.timestamp)}"
                 size="9" maxlength="9" spellcheck="false" autocomplete="off" inputmode="decimal"
                 class="shot-input ts-input bg-transparent p-0 border-0 font-mono text-xs sm:text-sm text-indigo-200 focus:outline-none focus:ring-0">
             </label>
 
             <!-- Timestamp Fine-tune Buttons (+/- 100ms, +/- 500ms) -->
             <div class="flex items-center gap-1 bg-slate-950/80 p-1 rounded-lg border border-slate-800">
-              ${adjustButton(index, -500)}
-              ${adjustButton(index, -100)}
-              ${adjustButton(index, 100)}
-              ${adjustButton(index, 500)}
+              ${adjustButton(-500)}
+              ${adjustButton(-100)}
+              ${adjustButton(100)}
+              ${adjustButton(500)}
             </div>
           </div>
 
           <!-- Right: Move Up/Down, Duplicate, Delete -->
           <div class="flex items-center gap-0.5">
-            <button data-index="${index}" data-dir="-1" class="move-shot-btn p-1.5 text-slate-400 hover:text-indigo-300 hover:bg-slate-800 rounded-lg transition-all ${index === 0 ? 'opacity-30 cursor-not-allowed' : ''}" title="${escapeHtml(t('moveUp'))}">
+            <button type="button" data-action="move" data-dir="-1" class="move-shot-btn p-1.5 text-slate-400 hover:text-indigo-300 hover:bg-slate-800 rounded-lg transition-all ${index === 0 ? 'opacity-30 cursor-not-allowed' : ''}" title="${escapeHtml(t('moveUp'))}">
               ${icon('up')}
             </button>
-            <button data-index="${index}" data-dir="1" class="move-shot-btn p-1.5 text-slate-400 hover:text-indigo-300 hover:bg-slate-800 rounded-lg transition-all ${index === state.shots.length - 1 ? 'opacity-30 cursor-not-allowed' : ''}" title="${escapeHtml(t('moveDown'))}">
+            <button type="button" data-action="move" data-dir="1" class="move-shot-btn p-1.5 text-slate-400 hover:text-indigo-300 hover:bg-slate-800 rounded-lg transition-all ${index === state.shots.length - 1 ? 'opacity-30 cursor-not-allowed' : ''}" title="${escapeHtml(t('moveDown'))}">
               ${icon('down')}
             </button>
-            <button data-index="${index}" class="duplicate-shot-btn p-1.5 text-slate-400 hover:text-indigo-300 hover:bg-slate-800 rounded-lg transition-all" title="${escapeHtml(t('duplicate'))}">
+            <button type="button" data-action="duplicate" class="duplicate-shot-btn p-1.5 text-slate-400 hover:text-indigo-300 hover:bg-slate-800 rounded-lg transition-all" title="${escapeHtml(t('duplicate'))}">
               ${icon('duplicate')}
             </button>
             ${state.shots.length > 1 ? `
-              <button data-index="${index}" class="delete-shot-btn p-1.5 text-slate-400 hover:text-rose-400 hover:bg-slate-800 rounded-lg transition-all" title="${escapeHtml(t('delete'))}">
+              <button type="button" data-action="delete" class="delete-shot-btn p-1.5 text-slate-400 hover:text-rose-400 hover:bg-slate-800 rounded-lg transition-all" title="${escapeHtml(t('delete'))}">
                 ${icon('trash')}
               </button>
             ` : ''}
@@ -134,7 +134,7 @@ function render() {
       </div>
 
       <div>
-        <textarea data-index="${index}" data-field="description" rows="3" style="min-height: 110px;"
+        <textarea data-field="description" rows="3" style="min-height: 110px;"
           placeholder="${escapeHtml(t('placeholder'))}"
           class="shot-input w-full bg-slate-950/80 border border-slate-800 focus:border-indigo-500/80 rounded-xl p-3.5 text-xs sm:text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-indigo-500/50 resize-y font-sans leading-relaxed">${escapeHtml(shot.description)}</textarea>
       </div>
@@ -145,9 +145,6 @@ function render() {
 
   // Update Shot Counter
   shotCountBadgeEl.textContent = state.shots.length;
-
-  // Attach Event Listeners to newly rendered inputs
-  attachShotEvents();
 
   // 2. Labels, validation and live output
   refreshDerived();
@@ -226,56 +223,6 @@ function setActiveShot(index) {
   });
 }
 
-// Attach Event Listeners to Input Fields inside Dynamic Cards
-function attachShotEvents() {
-  document.querySelectorAll('.shot-input').forEach(input => {
-    input.addEventListener('focus', (e) => {
-      setActiveShot(parseInt(e.target.dataset.index));
-    });
-
-    input.addEventListener('input', (e) => {
-      const idx = parseInt(e.target.dataset.index);
-      const field = e.target.dataset.field;
-      state.shots[idx][field] = e.target.value;
-      refreshDerived();
-    });
-  });
-
-  // Time Fine-tune Buttons
-  document.querySelectorAll('.time-adjust-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      const idx = parseInt(e.currentTarget.dataset.index);
-      const delta = parseInt(e.currentTarget.dataset.delta);
-      adjustShotTime(idx, delta);
-    });
-  });
-
-  // Move Up / Move Down Buttons
-  document.querySelectorAll('.move-shot-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      const idx = parseInt(e.currentTarget.dataset.index);
-      const dir = parseInt(e.currentTarget.dataset.dir);
-      moveShot(idx, dir);
-    });
-  });
-
-  // Delete Shot Buttons
-  document.querySelectorAll('.delete-shot-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      const idx = parseInt(e.currentTarget.dataset.index);
-      deleteShot(idx);
-    });
-  });
-
-  // Duplicate Shot Buttons
-  document.querySelectorAll('.duplicate-shot-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      const idx = parseInt(e.currentTarget.dataset.index);
-      duplicateShot(idx);
-    });
-  });
-}
-
 function initShotSorting() {
   // Drag-and-drop reordering (SortableJS). The up/down buttons keep working
   // if the CDN script fails to load.
@@ -292,4 +239,39 @@ function initShotSorting() {
       },
     });
   }
+}
+
+// Card events are delegated to the list, so they are bound once and survive
+// render(). Buttons say what they do with data-action; the card's data-index
+// says which shot.
+function cardIndex(el) {
+  return parseInt(el.closest('.shot-card').dataset.index, 10);
+}
+
+function handleShotClick(e) {
+  const btn = e.target.closest('[data-action]');
+  if (!btn || !shotsListEl.contains(btn)) return;
+  const index = cardIndex(btn);
+  switch (btn.dataset.action) {
+    case 'nudge': adjustShotTime(index, parseInt(btn.dataset.delta, 10)); break;
+    case 'move': moveShot(index, parseInt(btn.dataset.dir, 10)); break;
+    case 'duplicate': duplicateShot(index); break;
+    case 'delete': deleteShot(index); break;
+  }
+}
+
+function handleShotInput(e) {
+  const field = e.target.dataset.field;
+  if (!field) return;
+  state.shots[cardIndex(e.target)][field] = e.target.value;
+  refreshDerived();
+}
+
+function initShots() {
+  shotsListEl.addEventListener('click', handleShotClick);
+  shotsListEl.addEventListener('input', handleShotInput);
+  shotsListEl.addEventListener('focusin', (e) => {
+    if (e.target.matches('.shot-input')) setActiveShot(cardIndex(e.target));
+  });
+  initShotSorting();
 }
