@@ -405,7 +405,7 @@ test('layout: no horizontal scroll, single-row card header, fitted timestamp box
 
       if (viewport.width >= 1024) {
         const sameRow = await page.evaluate(() => {
-          const row = document.querySelector('.shot-card > div > div');
+          const row = document.querySelector('.shot-header');
           const tops = [...row.querySelectorAll(':scope > div > *')].map(el => {
             const r = el.getBoundingClientRect();
             return r.top + r.height / 2;

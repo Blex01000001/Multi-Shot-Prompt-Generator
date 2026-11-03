@@ -55,7 +55,9 @@ function duplicateShot(index) {
 const TS_BOX_BASE = 'ts-box inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 font-mono text-xs sm:text-sm transition-colors';
 const TS_BOX_OK = 'bg-slate-950 border-slate-700/80 focus-within:border-indigo-500';
 const TS_BOX_ERR = 'bg-rose-950/40 border-rose-500 ring-1 ring-rose-500/60';
-const LABEL_BASE = 'shot-label px-2.5 py-1 rounded-lg border font-mono text-xs sm:text-sm font-bold';
+const LABEL_BASE = 'shot-label whitespace-nowrap px-2.5 py-1.5 rounded-lg border font-mono text-xs sm:text-sm font-bold';
+// Card action buttons (move / paste / duplicate / delete): larger icons.
+const ACTION_ICON = 'w-5 h-5';
 const LABEL_OUT = 'bg-indigo-500/10 border-indigo-500/30 text-indigo-300';
 const LABEL_SKIP = 'bg-slate-800/60 border-slate-700/60 text-slate-400';
 
@@ -75,22 +77,27 @@ function render() {
   state.shots.forEach((shot, index) => {
     const card = document.createElement('div');
     card.dataset.index = index;
-    card.className = `shot-card glass-panel rounded-2xl p-5 border transition-all duration-200 ${
+    card.className = `shot-card flex flex-col sm:flex-row gap-3 sm:gap-4 glass-panel rounded-2xl p-5 border transition-all duration-200 ${
       state.activeShotIndex === index
         ? 'border-indigo-500/80 bg-slate-900/90 shadow-md shadow-indigo-500/10'
         : 'border-slate-800 hover:border-slate-700'
     }`;
 
     card.innerHTML = `
-      <div class="pb-3.5 mb-3.5 border-b border-slate-800/80">
-        <div class="flex flex-wrap items-center justify-between gap-2">
-          <!-- Left: Shot Tag, Timestamp Input, and Fine-tune Buttons -->
-          <div class="flex flex-wrap items-center gap-2">
-            <button type="button" class="drag-handle -ml-2 p-1 text-slate-500 hover:text-indigo-300 cursor-grab active:cursor-grabbing rounded-md transition-colors" title="${escapeHtml(t('dragHandle'))}" aria-label="${escapeHtml(t('dragHandle'))}">
-              ${icon('drag', 'w-5 h-5')}
-            </button>
-            <span class="${LABEL_BASE}"></span>
+      <!-- Left column (desktop) / top row (mobile): [Shot N] label and drag handle -->
+      <div class="flex sm:flex-col items-center gap-2 shrink-0">
+        <span class="${LABEL_BASE}"></span>
+        <button type="button" class="drag-handle p-1 text-slate-500 hover:text-indigo-300 cursor-grab active:cursor-grabbing rounded-md transition-colors" title="${escapeHtml(t('dragHandle'))}" aria-label="${escapeHtml(t('dragHandle'))}">
+          ${icon('drag', 'w-5 h-5')}
+        </button>
+      </div>
 
+      <!-- Right column: timestamp row, notes, description -->
+      <div class="flex-1 min-w-0">
+      <div class="pb-3.5 mb-3.5 border-b border-slate-800/80">
+        <div class="shot-header flex flex-wrap items-center justify-between gap-2">
+          <!-- Left: Timestamp Input and Fine-tune Buttons -->
+          <div class="flex flex-wrap items-center gap-2">
             <label class="${TS_BOX_BASE} ${TS_BOX_OK}">
               <span class="text-slate-500 select-none">At</span>
               <input type="text" data-field="timestamp" value="${escapeHtml(shot.timestamp)}"
@@ -110,20 +117,20 @@ function render() {
           <!-- Right: Move Up/Down, Duplicate, Delete -->
           <div class="flex items-center gap-0.5">
             <button type="button" data-action="move" data-dir="-1" class="move-shot-btn p-1.5 lg:p-1 text-slate-400 hover:text-indigo-300 hover:bg-slate-800 rounded-lg transition-all ${index === 0 ? 'opacity-30 cursor-not-allowed' : ''}" title="${escapeHtml(t('moveUp'))}">
-              ${icon('up')}
+              ${icon('up', ACTION_ICON)}
             </button>
             <button type="button" data-action="move" data-dir="1" class="move-shot-btn p-1.5 lg:p-1 text-slate-400 hover:text-indigo-300 hover:bg-slate-800 rounded-lg transition-all ${index === state.shots.length - 1 ? 'opacity-30 cursor-not-allowed' : ''}" title="${escapeHtml(t('moveDown'))}">
-              ${icon('down')}
+              ${icon('down', ACTION_ICON)}
             </button>
             <button type="button" data-action="paste-text" class="paste-shot-btn p-1.5 lg:p-1 text-slate-400 hover:text-purple-300 hover:bg-slate-800 rounded-lg transition-all" title="${escapeHtml(t('pasteShot'))}" aria-label="${escapeHtml(t('pasteShot'))}">
-              ${icon('paste')}
+              ${icon('paste', ACTION_ICON)}
             </button>
             <button type="button" data-action="duplicate" class="duplicate-shot-btn p-1.5 lg:p-1 text-slate-400 hover:text-indigo-300 hover:bg-slate-800 rounded-lg transition-all" title="${escapeHtml(t('duplicate'))}">
-              ${icon('duplicate')}
+              ${icon('duplicate', ACTION_ICON)}
             </button>
             ${state.shots.length > 1 ? `
-              <button type="button" data-action="delete" class="delete-shot-btn p-1.5 lg:p-1 text-slate-400 hover:text-rose-400 hover:bg-slate-800 rounded-lg transition-all" title="${escapeHtml(t('delete'))}">
-                ${icon('trash')}
+              <button type="button" data-action="delete" class="delete-shot-btn p-1.5 lg:p-1 text-rose-400 hover:text-rose-300 hover:bg-rose-950/60 rounded-lg transition-all" title="${escapeHtml(t('delete'))}">
+                ${icon('trash', ACTION_ICON)}
               </button>
             ` : ''}
           </div>
@@ -153,6 +160,7 @@ function render() {
         <textarea data-field="description" rows="3" style="min-height: 110px;"
           placeholder="${escapeHtml(t('placeholder'))}"
           class="shot-input w-full bg-slate-950/80 border border-slate-800 focus:border-indigo-500/80 rounded-xl p-3.5 text-xs sm:text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-indigo-500/50 resize-y font-sans leading-relaxed">${escapeHtml(shot.description)}</textarea>
+      </div>
       </div>
     `;
 
