@@ -89,6 +89,16 @@ const MESSAGES = {
   toastRestored: { en: 'Default tags restored', 'zh-Hant': '已恢復預設標籤', ja: 'デフォルトのタグに戻しました' },
   dragHandle: { en: 'Drag to reorder', 'zh-Hant': '拖曳以調整順序', ja: 'ドラッグで並べ替え' },
   toastSelectCopy: { en: 'The browser blocked copying. The prompt is selected — press Ctrl+C (⌘C on Mac).', 'zh-Hant': '瀏覽器阻擋了複製，已幫你選取 Prompt，請按 Ctrl+C（Mac 為 ⌘C）。', ja: 'ブラウザがコピーをブロックしました。プロンプトを選択したので Ctrl+C（Mac は ⌘C）を押してください。' },
+  pasteBtn: { en: 'Paste prompt from clipboard', 'zh-Hant': '從剪貼簿貼上 Prompt', ja: 'クリップボードからプロンプトを貼り付け' },
+  pasteTitle: { en: 'Paste prompt', 'zh-Hant': '貼上 Prompt', ja: 'プロンプトを貼り付け' },
+  pasteHint: { en: 'The browser did not allow reading the clipboard. Paste the prompt below (Ctrl+V / ⌘V), then press Import.', 'zh-Hant': '瀏覽器不允許直接讀取剪貼簿。請把 Prompt 貼到下方（Ctrl+V／⌘V），再按「匯入」。', ja: 'ブラウザがクリップボードの読み取りを許可しませんでした。下にプロンプトを貼り付けて（Ctrl+V／⌘V）、「読み込む」を押してください。' },
+  pasteImport: { en: 'Import', 'zh-Hant': '匯入', ja: '読み込む' },
+  pasteNone: { en: 'No "[Shot N] At MM:SS.mmm" found. Nothing was changed.', 'zh-Hant': '找不到「[Shot N] At MM:SS.mmm」，卡片沒有變更。', ja: '「[Shot N] At MM:SS.mmm」が見つかりません。変更はありません。' },
+  toastPasted: { en: 'Imported {n} shot(s)', 'zh-Hant': '已匯入 {n} 個鏡頭', ja: '{n} 件のショットを読み込みました' },
+  confirmTitle: { en: 'Replace current shots?', 'zh-Hant': '要取代目前的鏡頭嗎？', ja: '現在のショットを置き換えますか？' },
+  confirmReplace: { en: 'The current shots, soundscape and music will be replaced by the pasted prompt.', 'zh-Hant': '目前的鏡頭、環境音效與背景音樂將被貼上的 Prompt 取代。', ja: '現在のショット、環境音、BGM は貼り付けたプロンプトで置き換えられます。' },
+  pastePlaceholder: { en: 'integrated_multimodal_description: [Shot 1] At 00:00.000, ...', 'zh-Hant': 'integrated_multimodal_description: [Shot 1] At 00:00.000, ...', ja: 'integrated_multimodal_description: [Shot 1] At 00:00.000, ...' },
+  replace: { en: 'Replace', 'zh-Hant': '取代', ja: '置き換える' },
 };
 
 let currentLang = DEFAULT_LANG;

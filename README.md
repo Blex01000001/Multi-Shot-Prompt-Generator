@@ -42,6 +42,8 @@ non_diegetic_music: N/A
 ## Features
 
 - **Shot editing**: add, duplicate, delete, move up and down, or drag to reorder.
+- **Paste prompt from clipboard**: turn an existing MiniMax H3 prompt back into shot cards
+  (asks first if the cards already have content; falls back to a paste box if the browser blocks the clipboard).
 - **Timestamp check**: highlights malformed timestamps and shots that are not later than the previous output shot.
 - **Auto formatting**: optionally adds a period to the end of each shot.
 - **Prompt tags**: search and click common phrases to insert them into the current shot.

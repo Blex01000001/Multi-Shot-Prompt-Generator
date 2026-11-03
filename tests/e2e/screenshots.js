@@ -42,6 +42,15 @@ const SHOTS = [
   { name: 'desktop-en-lang-menu', viewport: DESKTOP, lang: 'en', setup: page => page.click('#lang-btn') },
   { name: 'mobile-en', viewport: MOBILE, lang: 'en', setup: fillSample, fullPage: true },
   { name: 'mobile-zh-tag-manager', viewport: MOBILE, lang: 'zh-Hant', setup: page => page.click('#manage-tags-btn') },
+  { name: 'desktop-en-paste-confirm', viewport: DESKTOP, lang: 'en', setup: async page => {
+    await fillSample(page);
+    await page.evaluate(() => { navigator.clipboard.readText = async () => '[Shot 1] At 00:00.000, pasted shot'; });
+    await page.click('#paste-prompt-btn');
+  } },
+  { name: 'mobile-zh-paste-modal', viewport: MOBILE, lang: 'zh-Hant', setup: async page => {
+    await page.evaluate(() => { navigator.clipboard.readText = () => Promise.reject(new Error('denied')); });
+    await page.click('#paste-prompt-btn');
+  } },
   { name: 'readme', viewport: { width: 1400, height: 860 }, lang: 'en', setup: fillReadme, out: path.join(ROOT, 'docs', 'screenshot.png'), explicit: true },
 ];
 

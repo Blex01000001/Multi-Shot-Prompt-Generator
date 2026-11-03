@@ -3,7 +3,7 @@
 // and start-up. Loaded last.
 //
 // Script load order (index.html): core.js → i18n.js → state.js → shots.js →
-// tags.js → app.js. All are classic scripts sharing top-level names.
+// tags.js → paste.js → app.js. All are classic scripts sharing top-level names.
 // =============================================================================
 
 let copyResetTimer = null;
@@ -166,11 +166,13 @@ function initGlobalControls() {
     refreshDerived();
   });
 
-  // Escape closes the language menu and the tag manager.
+  // Escape closes the top-most layer: confirm dialog, then paste / tag modal.
   document.addEventListener('keydown', (e) => {
     if (e.key !== 'Escape') return;
     toggleLangMenu(false);
-    if (isTagModalOpen()) closeTagModal();
+    if (isConfirmOpen()) closeConfirm(false);
+    else if (isPasteModalOpen()) closePasteModal();
+    else if (isTagModalOpen()) closeTagModal();
   });
 }
 
@@ -182,5 +184,7 @@ syncAudioInputs();
 initGlobalControls();
 initLanguageMenu();
 initTags();
+initPaste();
+initConfirm();
 initShots();
 applyLanguage();

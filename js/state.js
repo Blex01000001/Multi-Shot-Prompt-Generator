@@ -55,6 +55,13 @@ const tsWarningTextEl = $('ts-warning-text');
 const addShotBtn = $('add-shot-btn');
 const addShotBottomBtn = $('add-shot-bottom-btn');
 
+// Paste prompt & confirm dialog
+const pastePromptBtn = $('paste-prompt-btn');
+const pasteModal = $('paste-modal');
+const pasteModalText = $('paste-modal-text');
+const pasteModalError = $('paste-modal-error');
+const confirmModal = $('confirm-modal');
+
 // Global controls
 const soundscapeInput = $('soundscape-input');
 const musicInput = $('music-input');
@@ -125,3 +132,39 @@ function showToast(message) {
     toast.classList.add('translate-y-20', 'opacity-0');
   }, 2500);
 }
+
+// -----------------------------------------------------------------------------
+// Confirm dialog — styled, translated replacement for window.confirm().
+// await showConfirm({ title, message, ok }) → true (OK) / false (cancel,
+// backdrop click or Escape).
+// -----------------------------------------------------------------------------
+let confirmResolve = null;
+
+function isConfirmOpen() {
+  return !confirmModal.classList.contains('hidden');
+}
+
+function closeConfirm(result) {
+  if (!confirmResolve) return;
+  confirmModal.classList.add('hidden');
+  const resolve = confirmResolve;
+  confirmResolve = null;
+  resolve(result);
+}
+
+function showConfirm({ title, message, ok }) {
+  closeConfirm(false);
+  $('confirm-title').textContent = title;
+  $('confirm-message').textContent = message;
+  $('confirm-ok').textContent = ok;
+  confirmModal.classList.remove('hidden');
+  $('confirm-ok').focus();
+  return new Promise(resolve => { confirmResolve = resolve; });
+}
+
+function initConfirm() {
+  $('confirm-ok').addEventListener('click', () => closeConfirm(true));
+  $('confirm-cancel').addEventListener('click', () => closeConfirm(false));
+  $('confirm-backdrop').addEventListener('click', () => closeConfirm(false));
+}
+

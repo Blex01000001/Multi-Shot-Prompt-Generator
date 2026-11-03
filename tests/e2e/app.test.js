@@ -153,6 +153,76 @@ test('copy button writes the prompt to the clipboard', async () => {
   assert.equal(await page.evaluate(() => navigator.clipboard.readText()), await output(page));
 });
 
+const PASTED = '---\nintegrated_multimodal_description: [Shot 1] At 00:00.000, The girl is standing, and the camera is shooting from behind her.[Shot 2] At 00:01.000, The girl bent down, her hands resting on her knees.[Shot 3] At 00:02.000, The girl turned her head to look at the camera.\n\noverall_soundscape: light rain\nnon_diegetic_music: N/A\n---';
+const descriptionValues = (page) => descriptions(page).evaluateAll(els => els.map(e => e.value));
+
+test('paste prompt: empty cards are replaced without asking', async () => {
+  const { page } = await open({ permissions: ['clipboard-read', 'clipboard-write'] });
+  await page.evaluate(text => navigator.clipboard.writeText(text), PASTED);
+  await page.click('#paste-prompt-btn');
+  await page.waitForFunction(() => document.querySelectorAll('.shot-card').length === 3);
+  assert.equal(await page.locator('#confirm-modal').isVisible(), false);
+  assert.deepEqual(await descriptionValues(page), [
+    'The girl is standing, and the camera is shooting from behind her.',
+    'The girl bent down, her hands resting on her knees.',
+    'The girl turned her head to look at the camera.',
+  ]);
+  assert.deepEqual(await timestamps(page).evaluateAll(els => els.map(e => e.value)), ['00:00.000', '00:01.000', '00:02.000']);
+  assert.equal(await page.inputValue('#soundscape-input'), 'light rain');
+  assert.equal(await page.inputValue('#music-input'), 'N/A');
+  assert.match(await firstLine(page), /behind her\. \[Shot 2\] At 00:01\.000, The girl bent down/);
+});
+
+test('paste prompt: asks before replacing existing content', async () => {
+  const { page } = await open({ permissions: ['clipboard-read', 'clipboard-write'] });
+  await descriptions(page).nth(0).fill('my own shot');
+  await page.evaluate(text => navigator.clipboard.writeText(text), PASTED);
+
+  await page.click('#paste-prompt-btn');
+  await page.locator('#confirm-modal').waitFor({ state: 'visible' });
+  await page.click('#confirm-cancel');
+  assert.equal(await page.locator('#confirm-modal').isVisible(), false);
+  assert.deepEqual(await descriptionValues(page), ['my own shot', '']);
+
+  await page.click('#paste-prompt-btn');
+  await page.locator('#confirm-modal').waitFor({ state: 'visible' });
+  await page.keyboard.press('Escape');
+  assert.deepEqual(await descriptionValues(page), ['my own shot', '']);
+
+  await page.click('#paste-prompt-btn');
+  await page.click('#confirm-ok');
+  await page.waitForFunction(() => document.querySelectorAll('.shot-card').length === 3);
+  assert.equal((await descriptionValues(page))[0], 'The girl is standing, and the camera is shooting from behind her.');
+});
+
+test('paste prompt: text without shots changes nothing', async () => {
+  const { page } = await open({ permissions: ['clipboard-read', 'clipboard-write'] });
+  await descriptions(page).nth(0).fill('keep me');
+  await page.evaluate(() => navigator.clipboard.writeText('hello world'));
+  await page.click('#paste-prompt-btn');
+  await page.waitForFunction(() => document.querySelector('#toast-msg').textContent.includes('[Shot N]'));
+  assert.deepEqual(await descriptionValues(page), ['keep me', '']);
+});
+
+test('paste prompt: falls back to a paste box when the clipboard is blocked', async () => {
+  const { page } = await open();
+  await page.evaluate(() => { navigator.clipboard.readText = () => Promise.reject(new Error('denied')); });
+  await page.click('#paste-prompt-btn');
+  await page.locator('#paste-modal').waitFor({ state: 'visible' });
+
+  await page.fill('#paste-modal-text', 'not a prompt');
+  await page.click('#paste-modal-import');
+  assert.equal(await page.locator('#paste-modal-error').isVisible(), true);
+  assert.equal(await page.locator('#paste-modal').isVisible(), true);
+
+  await page.fill('#paste-modal-text', '  [Shot 1] At 00:00.000,  a girl\n  smiles  ');
+  assert.equal(await page.locator('#paste-modal-error').isVisible(), false);
+  await page.click('#paste-modal-import');
+  assert.equal(await page.locator('#paste-modal').isVisible(), false);
+  assert.deepEqual(await descriptionValues(page), ['a girl smiles']);
+  assert.equal(await page.inputValue('#soundscape-input'), 'N/A');
+});
+
 test('prompt chips: search and insert into the focused shot', async () => {
   const { page } = await open();
   await page.fill('#tag-search', 'camera');
