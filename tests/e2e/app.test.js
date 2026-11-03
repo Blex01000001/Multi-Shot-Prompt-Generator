@@ -100,8 +100,16 @@ test('add, duplicate, move and delete shots', async () => {
   assert.deepEqual(await descriptions(page).evaluateAll(els => els.map(e => e.value)), ['first', 'first', 'second']);
   assert.equal(await timestamps(page).nth(1).inputValue(), '00:01.000');
 
+  await timestamps(page).nth(2).fill('00:02.000');
+  const times = ['00:00.000', '00:01.000', '00:02.000'];
   await page.locator('.shot-card').nth(2).locator('.move-shot-btn[data-dir="-1"]').click();
   assert.deepEqual(await descriptions(page).evaluateAll(els => els.map(e => e.value)), ['first', 'second', 'first']);
+  // moving swaps the cards but the timestamps stay in place
+  assert.deepEqual(await timestamps(page).evaluateAll(els => els.map(e => e.value)), times);
+  assert.equal(await page.locator('#ts-warning').isVisible(), false);
+  await page.locator('.shot-card').nth(0).locator('.move-shot-btn[data-dir="1"]').click();
+  assert.deepEqual(await descriptions(page).evaluateAll(els => els.map(e => e.value)), ['second', 'first', 'first']);
+  assert.deepEqual(await timestamps(page).evaluateAll(els => els.map(e => e.value)), times);
 
   await page.locator('.shot-card').nth(0).locator('.delete-shot-btn').click();
   assert.equal(await page.locator('.shot-card').count(), 2);

@@ -28,7 +28,8 @@ function adjustShotTime(index, deltaMs) {
 }
 
 function moveShot(index, direction) {
-  applyShotChange(moveShotTo(state.shots, index, index + direction, index));
+  // Same as drag-and-drop: the cards swap, the timestamps stay in place.
+  applyShotChange(moveShotKeepingTimes(state.shots, index, index + direction, index));
 }
 
 function addShot() {

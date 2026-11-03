@@ -9,7 +9,7 @@
 | `index.html` | 靜態畫面結構、彈出視窗、`<script>` 載入順序 | 新增區塊／按鈕／輸入欄 |
 | `css/style.css` | Tailwind 以外的少量自訂樣式 | 捲軸、玻璃效果、拖曳狀態 |
 | `js/tailwind-config.js` | Tailwind CDN 設定（字體、色票） | 主題色、字體 |
-| `js/core.js` | **純邏輯**：時間戳記、鏡頭增刪複製移動（回傳 `{ shots, active }`）、輸出格式 `buildPrompt()` 與反向解析 `parsePrompt()`、驗證 `analyzeShots()`、預設值、標籤資料處理、`DEFAULT_TAGS` | 輸出格式、驗證規則、鏡頭操作、標籤匯入匯出 |
+| `js/core.js` | **純邏輯**：時間戳記、鏡頭增刪複製移動（回傳 `{ shots, active }`；上移／下移與拖曳都用 `moveShotKeepingTimes()`，時間留在原位）、輸出格式 `buildPrompt()` 與反向解析 `parsePrompt()`、驗證 `analyzeShots()`、預設值、標籤資料處理、`DEFAULT_TAGS` | 輸出格式、驗證規則、鏡頭操作、標籤匯入匯出 |
 | `js/i18n.js` | 介面文字 `MESSAGES`（每個鍵三語並列）、`t()` | 新增或修改任何介面文字 |
 | `js/state.js` | `state`、DOM 元素參照、localStorage 讀寫、`showToast()`、確認視窗 `showConfirm()`（取代 `window.confirm`）、JS 產生的 HTML 用的圖示 `ICONS`／`icon()` | 新增狀態欄位、DOM 參照或圖示 |
 | `js/shots.js` | 鏡頭卡片 HTML、`render()` / `refreshDerived()`、增刪複製移動、拖曳排序 | 卡片外觀與操作 |
