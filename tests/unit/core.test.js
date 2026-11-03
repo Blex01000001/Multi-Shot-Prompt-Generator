@@ -19,6 +19,14 @@ test('isValidTimestamp requires exactly MM:SS.mmm', () => {
   for (const bad of ['0:1', '00:60.000', '00:01.5', '00:01', 'aa:bb.ccc', '']) assert.ok(!core.isValidTimestamp(bad), bad);
 });
 
+test('createInitialShots: two blank shots, a fresh copy every call', () => {
+  const a = core.createInitialShots();
+  assert.deepEqual(a.map(s => [s.timestamp, s.description]), [['00:00.000', ''], ['00:01.000', '']]);
+  a[0].description = 'changed';
+  assert.equal(core.createInitialShots()[0].description, '');
+  assert.equal(core.DEFAULT_AUDIO, 'N/A');
+});
+
 test('buildPrompt: format, spacing, auto period, N/A defaults', () => {
   const out = core.buildPrompt({
     shots: [shot('00:00.000', 'a girl smiles'), shot('00:01.000', 'camera pushes in.')],

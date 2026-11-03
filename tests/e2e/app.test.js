@@ -106,6 +106,22 @@ test('add, duplicate, move and delete shots', async () => {
   assert.equal(await page.locator('.delete-shot-btn').count(), 0); // last shot cannot be deleted
 });
 
+test('reset restores two blank shots and N/A audio', async () => {
+  const { page } = await open();
+  assert.equal(await page.inputValue('#soundscape-input'), 'N/A');
+  assert.equal(await page.inputValue('#music-input'), 'N/A');
+  await page.click('#add-shot-btn');
+  await descriptions(page).nth(0).fill('a girl smiles');
+  await page.fill('#soundscape-input', 'rain');
+  await page.fill('#music-input', 'piano');
+  await page.click('#reset-btn');
+  assert.equal(await page.locator('.shot-card').count(), 2);
+  assert.deepEqual(await timestamps(page).evaluateAll(els => els.map(e => e.value)), ['00:00.000', '00:01.000']);
+  assert.equal(await page.inputValue('#soundscape-input'), 'N/A');
+  assert.equal(await page.inputValue('#music-input'), 'N/A');
+  assert.ok((await output(page)).endsWith('overall_soundscape: N/A\nnon_diegetic_music: N/A'));
+});
+
 test('drag a card by its handle to reorder', async (t) => {
   const { page } = await open();
   if (!(await page.evaluate(() => !!window.Sortable))) return t.skip('SortableJS not available (offline without node_modules)');

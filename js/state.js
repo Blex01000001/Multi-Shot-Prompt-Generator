@@ -22,19 +22,13 @@ function saveTags() {
   } catch (e) { /* ignore */ }
 }
 
-// Default sample: two blank shots.
-const initialShots = [
-  { id: 1, timestamp: '00:00.000', description: '' },
-  { id: 2, timestamp: '00:01.000', description: '' },
-];
-
 let nextShotId = 100;
 
 const state = {
   tags: loadTags(),
-  shots: JSON.parse(JSON.stringify(initialShots)),
-  overallSoundscape: 'N/A',
-  nonDiegeticMusic: 'N/A',
+  shots: createInitialShots(),
+  overallSoundscape: DEFAULT_AUDIO,
+  nonDiegeticMusic: DEFAULT_AUDIO,
   timeStepSec: 1,
   autoPeriod: true,
   activeShotIndex: 0,

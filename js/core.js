@@ -47,6 +47,17 @@ function isValidTimestamp(tsString) {
 // A shot is { id, timestamp, description }.
 // -----------------------------------------------------------------------------
 
+// Value used for an empty soundscape / music field (also the initial value).
+const DEFAULT_AUDIO = 'N/A';
+
+// Starting content (page load and Reset): two blank shots one second apart.
+function createInitialShots() {
+  return [
+    { id: 1, timestamp: '00:00.000', description: '' },
+    { id: 2, timestamp: '00:01.000', description: '' },
+  ];
+}
+
 // For every shot returns { outNum, error }:
 //  - outNum: number in the output ([Shot N]); null for empty shots (skipped).
 //  - error:  null | { type: 'invalid' } | { type: 'order', prevNum, prevTs }
@@ -100,8 +111,8 @@ function buildPrompt({ shots, autoPeriod, overallSoundscape, nonDiegeticMusic })
     parts.push(`[Shot ${parts.length + 1}] At ${shot.timestamp.trim()}, ${text}`);
   });
 
-  const soundscape = (overallSoundscape || '').trim() || 'N/A';
-  const music = (nonDiegeticMusic || '').trim() || 'N/A';
+  const soundscape = (overallSoundscape || '').trim() || DEFAULT_AUDIO;
+  const music = (nonDiegeticMusic || '').trim() || DEFAULT_AUDIO;
 
   return `integrated_multimodal_description: ${parts.join(' ')}\n\noverall_soundscape: ${soundscape}\nnon_diegetic_music: ${music}`;
 }
@@ -233,6 +244,8 @@ if (typeof module === 'object' && module.exports) {
     formatTimestamp,
     parseTimestamp,
     isValidTimestamp,
+    DEFAULT_AUDIO,
+    createInitialShots,
     analyzeShots,
     buildPrompt,
     appendTagText,

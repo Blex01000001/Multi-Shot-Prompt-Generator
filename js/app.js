@@ -125,12 +125,17 @@ function initLanguageMenu() {
 // -----------------------------------------------------------------------------
 // Global controls
 // -----------------------------------------------------------------------------
+// Show the soundscape / music values from state in their inputs.
+function syncAudioInputs() {
+  soundscapeInput.value = state.overallSoundscape;
+  musicInput.value = state.nonDiegeticMusic;
+}
+
 function resetSample() {
-  state.shots = JSON.parse(JSON.stringify(initialShots));
-  state.overallSoundscape = 'N/A';
-  state.nonDiegeticMusic = 'N/A';
-  soundscapeInput.value = 'N/A';
-  musicInput.value = 'N/A';
+  state.shots = createInitialShots();
+  state.overallSoundscape = DEFAULT_AUDIO;
+  state.nonDiegeticMusic = DEFAULT_AUDIO;
+  syncAudioInputs();
   state.activeShotIndex = 0;
   render();
   showToast(t('toastReset'));
@@ -173,6 +178,7 @@ function initGlobalControls() {
 // Start-up
 // -----------------------------------------------------------------------------
 currentLang = loadLang();
+syncAudioInputs();
 initGlobalControls();
 initLanguageMenu();
 initTags();
