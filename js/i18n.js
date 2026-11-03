@@ -57,6 +57,7 @@ const MESSAGES = {
   tsInvalid: { en: 'Invalid timestamp — use MM:SS.mmm (e.g. 00:01.500)', 'zh-Hant': '時間戳記格式錯誤，請使用 MM:SS.mmm（例如 00:01.500）', ja: 'タイムスタンプの形式が不正です。MM:SS.mmm（例：00:01.500）で入力してください' },
   tsOrder: { en: 'Must be later than the previous shot ({prev} at {ts})', 'zh-Hant': '必須晚於上一個鏡頭（{prev} 為 {ts}）', ja: '前のショット（{prev}：{ts}）より後の時刻にしてください' },
   tsFirstNotZero: { en: 'The first shot usually starts at 00:00.000', 'zh-Hant': '第一個鏡頭通常從 00:00.000 開始', ja: '最初のショットは通常 00:00.000 から始まります' },
+  setZeroTime: { en: 'Set to 00:00.000', 'zh-Hant': '設為 00:00.000', ja: '00:00.000 に設定' },
   tsSummary: { en: '{n} timestamp issue(s) — check the highlighted shots', 'zh-Hant': '有 {n} 個時間戳記問題，請檢查標示紅色的鏡頭', ja: 'タイムスタンプの問題が {n} 件あります。赤く表示されたショットを確認してください' },
   manageTags: { en: 'Manage', 'zh-Hant': '管理', ja: '管理' },
   searchTags: { en: 'Search tags...', 'zh-Hant': '搜尋標籤...', ja: 'タグを検索...' },

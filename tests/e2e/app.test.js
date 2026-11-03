@@ -128,6 +128,12 @@ test('reminder when the first shot does not start at 00:00.000', async () => {
   assert.equal(await page.locator('.ts-input[aria-invalid]').count(), 0);
   await timestamps(page).nth(0).fill('00:00.000');
   assert.equal(await note.isVisible(), false);
+
+  await timestamps(page).nth(0).fill('00:00.750');
+  await note.locator('.zero-time-btn').click();
+  assert.equal(await timestamps(page).nth(0).inputValue(), '00:00.000');
+  assert.equal(await page.locator('.ts-note:visible').count(), 0);
+  assert.match(await firstLine(page), /\[Shot 1\] At 00:00\.000, a\./);
 });
 
 test('reset restores two blank shots and N/A audio', async () => {
