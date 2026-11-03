@@ -42,6 +42,11 @@ function isValidTimestamp(tsString) {
   return TIMESTAMP_RE.test(String(tsString).trim());
 }
 
+// Move a timestamp by `seconds` (may be negative); never goes below 00:00.000.
+function shiftTimestamp(tsString, seconds) {
+  return formatTimestamp(Math.max(0, parseTimestamp(tsString) + seconds));
+}
+
 // -----------------------------------------------------------------------------
 // Shots → output numbering, validation, prompt text
 // A shot is { id, timestamp, description }.
@@ -56,6 +61,45 @@ function createInitialShots() {
     { id: 1, timestamp: '00:00.000', description: '' },
     { id: 2, timestamp: '00:01.000', description: '' },
   ];
+}
+
+// -----------------------------------------------------------------------------
+// Shot list operations. Each returns { shots, active }: a new array (the input
+// is not changed) and the index of the shot that should be focused/active.
+// -----------------------------------------------------------------------------
+
+// New blank shot after the last one, `stepSec` later (00:00.000 if the list is empty).
+function appendShot(shots, id, stepSec) {
+  const last = shots[shots.length - 1];
+  const timestamp = last ? shiftTimestamp(last.timestamp, stepSec) : '00:00.000';
+  return { shots: [...shots, { id, timestamp, description: '' }], active: shots.length };
+}
+
+// Copy of shots[index] inserted right after it, `stepSec` later.
+function duplicateShotAt(shots, index, id, stepSec) {
+  const source = shots[index];
+  const copy = { id, timestamp: shiftTimestamp(source.timestamp, stepSec), description: source.description };
+  return { shots: [...shots.slice(0, index + 1), copy, ...shots.slice(index + 1)], active: index + 1 };
+}
+
+// Remove shots[index]; the last remaining shot is never removed.
+function removeShotAt(shots, index) {
+  if (shots.length <= 1) return { shots: shots.slice(), active: 0 };
+  return { shots: shots.filter((_, i) => i !== index), active: Math.max(0, index - 1) };
+}
+
+// Move shots[from] to position `to`. `active` follows the shot that was at
+// activeIndex (pass activeIndex = from to make the moved shot active).
+// Out-of-range indexes leave the order unchanged.
+function moveShotTo(shots, from, to, activeIndex) {
+  const result = shots.slice();
+  if (from !== to && from >= 0 && to >= 0 && from < shots.length && to < shots.length) {
+    const [moved] = result.splice(from, 1);
+    result.splice(to, 0, moved);
+  }
+  const activeShot = shots[activeIndex];
+  const active = activeShot ? result.indexOf(activeShot) : 0;
+  return { shots: result, active };
 }
 
 // For every shot returns { outNum, error }:
@@ -244,6 +288,11 @@ if (typeof module === 'object' && module.exports) {
     formatTimestamp,
     parseTimestamp,
     isValidTimestamp,
+    shiftTimestamp,
+    appendShot,
+    duplicateShotAt,
+    removeShotAt,
+    moveShotTo,
     DEFAULT_AUDIO,
     createInitialShots,
     analyzeShots,

@@ -9,24 +9,38 @@ function errorMessage(error) {
   return t('tsOrder', { prev: `[Shot ${error.prevNum}]`, ts: error.prevTs });
 }
 
-// Adjust timestamp in milliseconds
-function adjustShotTime(index, deltaMs) {
-  const shot = state.shots[index];
-  const currentSecs = parseTimestamp(shot.timestamp);
-  const newSecs = Math.max(0, currentSecs + deltaMs / 1000);
-  shot.timestamp = formatTimestamp(newSecs);
+// ---------------------------------------------------------------------
+// Actions (list logic lives in core.js: appendShot / duplicateShotAt /
+// removeShotAt / moveShotTo / shiftTimestamp)
+// ---------------------------------------------------------------------
+
+// Apply a { shots, active } result from core.js and rebuild the cards.
+function applyShotChange({ shots, active }) {
+  state.shots = shots;
+  state.activeShotIndex = active;
   render();
 }
 
-// Reorder Shots
-function moveShot(index, direction) {
-  const targetIndex = index + direction;
-  if (targetIndex < 0 || targetIndex >= state.shots.length) return;
-  const temp = state.shots[index];
-  state.shots[index] = state.shots[targetIndex];
-  state.shots[targetIndex] = temp;
-  state.activeShotIndex = targetIndex;
+function adjustShotTime(index, deltaMs) {
+  const shot = state.shots[index];
+  shot.timestamp = shiftTimestamp(shot.timestamp, deltaMs / 1000);
   render();
+}
+
+function moveShot(index, direction) {
+  applyShotChange(moveShotTo(state.shots, index, index + direction, index));
+}
+
+function addShot() {
+  applyShotChange(appendShot(state.shots, nextShotId++, state.timeStepSec));
+}
+
+function deleteShot(index) {
+  applyShotChange(removeShotAt(state.shots, index));
+}
+
+function duplicateShot(index) {
+  applyShotChange(duplicateShotAt(state.shots, index, nextShotId++, state.timeStepSec));
 }
 
 // ---------------------------------------------------------------------
@@ -262,47 +276,6 @@ function attachShotEvents() {
   });
 }
 
-// Add Shot Function
-function addShot() {
-  let nextTs = '00:00.000';
-  if (state.shots.length > 0) {
-    const lastTs = state.shots[state.shots.length - 1].timestamp;
-    const lastSecs = parseTimestamp(lastTs);
-    nextTs = formatTimestamp(lastSecs + state.timeStepSec);
-  }
-
-  state.shots.push({
-    id: nextShotId++,
-    timestamp: nextTs,
-    description: ''
-  });
-  state.activeShotIndex = state.shots.length - 1;
-  render();
-}
-
-// Delete Shot Function
-function deleteShot(index) {
-  if (state.shots.length <= 1) return;
-  state.shots.splice(index, 1);
-  state.activeShotIndex = Math.max(0, index - 1);
-  render();
-}
-
-// Duplicate Shot Function
-function duplicateShot(index) {
-  const target = state.shots[index];
-  const targetSecs = parseTimestamp(target.timestamp);
-  const nextTs = formatTimestamp(targetSecs + state.timeStepSec);
-
-  state.shots.splice(index + 1, 0, {
-    id: nextShotId++,
-    timestamp: nextTs,
-    description: target.description
-  });
-  state.activeShotIndex = index + 1;
-  render();
-}
-
 function initShotSorting() {
   // Drag-and-drop reordering (SortableJS). The up/down buttons keep working
   // if the CDN script fails to load.
@@ -315,12 +288,7 @@ function initShotSorting() {
       onEnd: (evt) => {
         const { oldIndex, newIndex } = evt;
         if (oldIndex === newIndex || oldIndex == null || newIndex == null) return;
-        const activeId = state.shots[state.activeShotIndex] && state.shots[state.activeShotIndex].id;
-        const [moved] = state.shots.splice(oldIndex, 1);
-        state.shots.splice(newIndex, 0, moved);
-        const activeIdx = state.shots.findIndex(shot => shot.id === activeId);
-        state.activeShotIndex = activeIdx >= 0 ? activeIdx : newIndex;
-        render();
+        applyShotChange(moveShotTo(state.shots, oldIndex, newIndex, state.activeShotIndex));
       },
     });
   }

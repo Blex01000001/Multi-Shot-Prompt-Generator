@@ -133,3 +133,59 @@ test('tagTooltip and tagMatches', () => {
   assert.ok(core.tagMatches(builtIn, ''));
   assert.ok(!core.tagMatches(builtIn, 'zzz'));
 });
+
+// ---------------------------------------------------------------------------
+// Shot list operations
+// ---------------------------------------------------------------------------
+const texts = (shots) => shots.map(s => `${s.timestamp} ${s.description}`);
+
+test('shiftTimestamp: adds seconds, clamps at zero', () => {
+  assert.equal(core.shiftTimestamp('00:01.000', 0.5), '00:01.500');
+  assert.equal(core.shiftTimestamp('00:59.900', 0.2), '01:00.100');
+  assert.equal(core.shiftTimestamp('00:00.300', -0.5), '00:00.000');
+  assert.equal(core.shiftTimestamp('garbage', 1), '00:01.000');
+});
+
+test('appendShot: one step after the last shot, or 00:00.000 when empty', () => {
+  const shots = [shot('00:00.000', 'a'), shot('00:02.000', 'b')];
+  const r = core.appendShot(shots, 7, 1.5);
+  assert.deepEqual(texts(r.shots), ['00:00.000 a', '00:02.000 b', '00:03.500 ']);
+  assert.equal(r.shots[2].id, 7);
+  assert.equal(r.active, 2);
+  assert.equal(shots.length, 2); // input not changed
+  assert.deepEqual(texts(core.appendShot([], 1, 1).shots), ['00:00.000 ']);
+});
+
+test('duplicateShotAt: copy inserted after the source, one step later', () => {
+  const shots = [shot('00:00.000', 'a'), shot('00:01.000', 'b')];
+  const r = core.duplicateShotAt(shots, 0, 9, 1);
+  assert.deepEqual(texts(r.shots), ['00:00.000 a', '00:01.000 a', '00:01.000 b']);
+  assert.equal(r.shots[1].id, 9);
+  assert.equal(r.active, 1);
+  assert.equal(shots.length, 2);
+});
+
+test('removeShotAt: removes and focuses the previous shot, keeps the last one', () => {
+  const shots = [shot('00:00.000', 'a'), shot('00:01.000', 'b'), shot('00:02.000', 'c')];
+  let r = core.removeShotAt(shots, 1);
+  assert.deepEqual(texts(r.shots), ['00:00.000 a', '00:02.000 c']);
+  assert.equal(r.active, 0);
+  r = core.removeShotAt(shots, 0);
+  assert.equal(r.active, 0);
+  r = core.removeShotAt([shot('00:00.000', 'only')], 0);
+  assert.deepEqual(texts(r.shots), ['00:00.000 only']);
+  assert.equal(shots.length, 3);
+});
+
+test('moveShotTo: reorders, active follows its shot, out of range is a no-op', () => {
+  const shots = [shot('00:00.000', 'a'), shot('00:01.000', 'b'), shot('00:02.000', 'c')];
+  let r = core.moveShotTo(shots, 2, 0, 2); // moved shot stays active
+  assert.deepEqual(r.shots.map(s => s.description), ['c', 'a', 'b']);
+  assert.equal(r.active, 0);
+  r = core.moveShotTo(shots, 0, 2, 1); // another shot was active: it keeps focus
+  assert.deepEqual(r.shots.map(s => s.description), ['b', 'c', 'a']);
+  assert.equal(r.active, 0);
+  r = core.moveShotTo(shots, 0, -1, 0);
+  assert.deepEqual(r.shots.map(s => s.description), ['a', 'b', 'c']);
+  assert.equal(shots[0].description, 'a');
+});
