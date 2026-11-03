@@ -27,8 +27,14 @@ function adjustShotTime(index, deltaMs) {
   render();
 }
 
+function setShotTimeToZero(index) {
+  state.shots[index].timestamp = formatTimestamp(0);
+  render();
+}
+
 function moveShot(index, direction) {
-  applyShotChange(moveShotTo(state.shots, index, index + direction, index));
+  // Same as drag-and-drop: the cards swap, the timestamps stay in place.
+  applyShotChange(moveShotKeepingTimes(state.shots, index, index + direction, index));
 }
 
 function addShot() {
@@ -131,6 +137,13 @@ function render() {
           ${icon('warning', 'w-4 h-4 shrink-0 text-rose-400')}
           <span class="ts-error-text"></span>
         </p>
+
+        <!-- Timestamp reminder (not an error) -->
+        <div class="ts-note hidden mt-2.5 text-xs sm:text-sm font-medium text-amber-300 flex flex-wrap items-center gap-x-1.5 gap-y-2">
+          ${icon('info', 'w-4 h-4 shrink-0 text-amber-400')}
+          <span>${escapeHtml(t('tsFirstNotZero'))}</span>
+          <button type="button" data-action="zero-time" class="zero-time-btn ml-1 px-2 py-0.5 rounded-lg border border-amber-500/40 bg-amber-950/40 hover:bg-amber-900/50 hover:border-amber-400/70 text-amber-200 font-mono text-xs sm:text-sm transition-colors">${escapeHtml(t('setZeroTime'))}</button>
+        </div>
       </div>
 
       <div>
@@ -193,6 +206,8 @@ function refreshDerived() {
       tsInput.removeAttribute('aria-invalid');
       errEl.classList.add('hidden');
     }
+
+    card.querySelector('.ts-note').classList.toggle('hidden', !info.warning);
   });
 
   exportedCountEl.textContent = exported === state.shots.length ? '' : t('exportedCount', { n: exported });
@@ -256,6 +271,7 @@ function handleShotClick(e) {
   switch (btn.dataset.action) {
     case 'nudge': adjustShotTime(index, parseInt(btn.dataset.delta, 10)); break;
     case 'move': moveShot(index, parseInt(btn.dataset.dir, 10)); break;
+    case 'zero-time': setShotTimeToZero(index); break;
     case 'duplicate': duplicateShot(index); break;
     case 'delete': deleteShot(index); break;
   }

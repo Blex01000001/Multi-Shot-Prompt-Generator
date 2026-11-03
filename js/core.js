@@ -126,6 +126,8 @@ function moveShotKeepingTimes(shots, from, to, activeIndex) {
 // For every shot returns { outNum, error }:
 //  - outNum: number in the output ([Shot N]); null for empty shots (skipped).
 //  - error:  null | { type: 'invalid' } | { type: 'order', prevNum, prevTs }
+//  - warning: null | { type: 'firstNotZero' } — the first exported shot has
+//    a valid timestamp other than 00:00.000 (a reminder, not an error).
 // Format is checked for every shot; ordering only between consecutive
 // exported (non-empty) shots, and the later one must be strictly greater.
 function analyzeShots(shots) {
@@ -134,7 +136,7 @@ function analyzeShots(shots) {
   return shots.map(shot => {
     const text = shot.description.trim();
     const ts = shot.timestamp.trim();
-    const info = { outNum: null, error: null };
+    const info = { outNum: null, error: null, warning: null };
 
     if (!isValidTimestamp(ts)) {
       info.error = { type: 'invalid' };
@@ -149,6 +151,9 @@ function analyzeShots(shots) {
       const secs = parseTimestamp(ts);
       if (prev && secs <= prev.secs) {
         info.error = { type: 'order', prevNum: prev.outNum, prevTs: prev.ts };
+      }
+      if (outNum === 1 && secs !== 0) {
+        info.warning = { type: 'firstNotZero' };
       }
       prev = { secs, outNum, ts };
     }

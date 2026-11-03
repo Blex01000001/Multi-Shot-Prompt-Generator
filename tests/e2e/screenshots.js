@@ -11,7 +11,7 @@ const OUT_DIR = path.join(ROOT, 'test-results', 'screenshots');
 const DESKTOP = { width: 1400, height: 1000 };
 const MOBILE = { width: 390, height: 844 };
 
-// Fill a representative state: 3 shots (one empty), one timestamp error.
+// Fill a representative state: 4 cards, 3 exported (one empty), no errors.
 async function fillSample(page) {
   await page.click('#add-shot-btn');
   await page.click('#add-shot-btn');
@@ -19,6 +19,12 @@ async function fillSample(page) {
   await descriptions.nth(0).fill('a girl turns toward the camera and smiles');
   await descriptions.nth(2).fill('camera slowly pushes in, low-angle shot looking up');
   await descriptions.nth(3).fill('she winks shyly with one eye closed');
+  await page.evaluate(() => window.scrollTo(0, 0));
+}
+
+// fillSample plus an out-of-order timestamp, to show the error state.
+async function fillOrderError(page) {
+  await fillSample(page);
   await page.locator('.ts-input').nth(3).fill('00:01.000');
   await page.evaluate(() => window.scrollTo(0, 0));
 }
@@ -38,6 +44,7 @@ const SHOTS = [
   { name: 'desktop-en', viewport: DESKTOP, lang: 'en', setup: fillSample },
   { name: 'desktop-zh', viewport: DESKTOP, lang: 'zh-Hant', setup: fillSample },
   { name: 'desktop-ja', viewport: DESKTOP, lang: 'ja', setup: fillSample },
+  { name: 'desktop-en-ts-error', viewport: DESKTOP, lang: 'en', setup: fillOrderError },
   { name: 'desktop-en-tag-manager', viewport: DESKTOP, lang: 'en', setup: page => page.click('#manage-tags-btn') },
   { name: 'desktop-en-lang-menu', viewport: DESKTOP, lang: 'en', setup: page => page.click('#lang-btn') },
   { name: 'mobile-en', viewport: MOBILE, lang: 'en', setup: fillSample, fullPage: true },
@@ -50,6 +57,10 @@ const SHOTS = [
   { name: 'mobile-zh-paste-modal', viewport: MOBILE, lang: 'zh-Hant', setup: async page => {
     await page.evaluate(() => { navigator.clipboard.readText = () => Promise.reject(new Error('denied')); });
     await page.click('#paste-prompt-btn');
+  } },
+  { name: 'desktop-zh-first-not-zero', viewport: DESKTOP, lang: 'zh-Hant', setup: async page => {
+    await fillSample(page);
+    await page.locator('.ts-input').nth(0).fill('00:00.500');
   } },
   { name: 'readme', viewport: { width: 1400, height: 860 }, lang: 'en', setup: fillReadme, out: path.join(ROOT, 'docs', 'screenshot.png'), explicit: true },
 ];

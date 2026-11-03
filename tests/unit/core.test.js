@@ -72,6 +72,14 @@ test('analyzeShots: empty shots are format-checked but ignored for ordering', ()
   assert.equal(info[3].error, null);
 });
 
+test('analyzeShots: warns when the first exported shot is not at 00:00.000', () => {
+  const info = core.analyzeShots([shot('00:00.500', ''), shot('00:01.000', 'b'), shot('00:02.000', 'c')]);
+  assert.deepEqual(info.map(i => i.warning), [null, { type: 'firstNotZero' }, null]);
+  assert.deepEqual(info.map(i => i.error), [null, null, null]); // a reminder, not an error
+  assert.equal(core.analyzeShots([shot('00:00.000', 'a'), shot('00:01.000', 'b')]).some(i => i.warning), false);
+  assert.equal(core.analyzeShots([shot('bad', 'a')])[0].warning, null); // invalid format → error only
+});
+
 test('appendTagText joins with ", "', () => {
   assert.equal(core.appendTagText('', 'x'), 'x');
   assert.equal(core.appendTagText('a', 'x'), 'a, x');
