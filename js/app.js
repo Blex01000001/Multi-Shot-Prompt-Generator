@@ -60,7 +60,7 @@ function renderTimeStepOptions() {
 // Re-apply every translated string on the page.
 function applyLanguage() {
   document.documentElement.lang = currentLang;
-  document.title = t('docTitle');
+  document.title = t('title');
 
   document.querySelectorAll('[data-i18n]').forEach(el => {
     el.textContent = t(el.dataset.i18n);
