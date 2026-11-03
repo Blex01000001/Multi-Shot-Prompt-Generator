@@ -18,6 +18,7 @@
 | `tests/unit/*.test.js` | Node 單元測試（`core.js`、`i18n.js` 一致性） | 改 `core.js` 時同步補測試 |
 | `tests/e2e/app.test.js` | Playwright 瀏覽器測試 | 新增 UI 功能時補測試 |
 | `tests/e2e/screenshots.js` | 主要畫面截圖 | 新增畫面狀態時加一筆 |
+| `.claude/hooks/session-start.sh` | 雲端 session 啟動時自動 `npm install`（沒變就略過） | 新增測試用套件時通常不用改 |
 | `README.md`、`docs/screenshot.png` | 給使用者看的英文介紹、工具連結、截圖 | 功能或輸出格式改變時同步更新 |
 
 每個 `js/*.js` 開頭都有註解說明職責；函式細節以程式碼與註解為準，不在此重複。
@@ -30,7 +31,7 @@ npm run test:e2e      # 瀏覽器測試，約 10 秒；改到 UI 或行為時跑
 npm run screenshots   # 產生 test-results/screenshots/*.png；改到外觀時用 Read 看圖確認
 ```
 
-- 第一次使用先 `npm install`（只裝測試工具：playwright、tailwindcss、sortablejs）。裝好後測試會用本機的 Tailwind／SortableJS，**不需要連 CDN**（雲端環境連不到 `cdn.tailwindcss.com` 時也能測）。
+- 第一次使用先 `npm install`（只裝測試工具：playwright、tailwindcss、sortablejs；雲端 session 由 SessionStart hook 自動執行）。裝好後測試會用本機的 Tailwind／SortableJS，**不需要連 CDN**（雲端環境連不到 `cdn.tailwindcss.com` 時也能測）。
 - 只跑部分測試：`npm run test:e2e -- --test-name-pattern=tag`；只截部分圖：`npm run screenshots -- zh`。
 - 測試必須全部通過才 commit；不可為了通過而跳過或刪除測試。
 
