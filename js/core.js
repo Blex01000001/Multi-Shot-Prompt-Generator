@@ -114,6 +114,15 @@ function moveShotTo(shots, from, to, activeIndex) {
   return { shots: result, active };
 }
 
+// Like moveShotTo, but the timestamps stay in their positions: cards change
+// order while the time column keeps its sequence (used by drag-and-drop).
+// Moving the second card to the top swaps the first two times, for example.
+function moveShotKeepingTimes(shots, from, to, activeIndex) {
+  const times = shots.map(shot => shot.timestamp);
+  const { shots: moved, active } = moveShotTo(shots, from, to, activeIndex);
+  return { shots: moved.map((shot, i) => ({ ...shot, timestamp: times[i] })), active };
+}
+
 // For every shot returns { outNum, error }:
 //  - outNum: number in the output ([Shot N]); null for empty shots (skipped).
 //  - error:  null | { type: 'invalid' } | { type: 'order', prevNum, prevTs }
@@ -360,6 +369,7 @@ if (typeof module === 'object' && module.exports) {
     duplicateShotAt,
     removeShotAt,
     moveShotTo,
+    moveShotKeepingTimes,
     DEFAULT_AUDIO,
     createInitialShots,
     analyzeShots,

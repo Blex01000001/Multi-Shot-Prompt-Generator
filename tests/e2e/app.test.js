@@ -142,7 +142,10 @@ test('drag a card by its handle to reorder', async (t) => {
   await page.mouse.up();
   await page.waitForTimeout(300);
   assert.deepEqual(await descriptions(page).evaluateAll(els => els.map(e => e.value)), ['CCC', 'AAA', 'BBB']);
-  assert.match(await firstLine(page), /^integrated_multimodal_description: \[Shot 1\] At 00:02\.000, CCC\./);
+  // timestamps stay in place, so the order stays valid
+  assert.deepEqual(await timestamps(page).evaluateAll(els => els.map(e => e.value)), ['00:00.000', '00:01.000', '00:02.000']);
+  assert.equal(await page.locator('#ts-warning').isVisible(), false);
+  assert.match(await firstLine(page), /^integrated_multimodal_description: \[Shot 1\] At 00:00\.000, CCC\. \[Shot 2\] At 00:01\.000, AAA\./);
 });
 
 test('copy button writes the prompt to the clipboard', async () => {

@@ -262,3 +262,14 @@ test('normalizeTimestamp: fixes common near-miss formats, keeps the rest', () =>
   };
   for (const [input, expected] of Object.entries(cases)) assert.equal(core.normalizeTimestamp(input), expected, input);
 });
+
+test('moveShotKeepingTimes: cards move, timestamps stay in their positions', () => {
+  const shots = [shot('00:00.000', 'a'), shot('00:01.000', 'b'), shot('00:02.500', 'c')];
+  let r = core.moveShotKeepingTimes(shots, 2, 0, 1);
+  assert.deepEqual(texts(r.shots), ['00:00.000 c', '00:01.000 a', '00:02.500 b']);
+  assert.equal(r.active, 2); // the previously active shot ("b") keeps focus
+  assert.equal(r.shots[0].id, shots[2].id);
+  r = core.moveShotKeepingTimes(shots, 0, 1, 0); // neighbours: times are simply swapped
+  assert.deepEqual(texts(r.shots), ['00:00.000 b', '00:01.000 a', '00:02.500 c']);
+  assert.deepEqual(texts(shots), ['00:00.000 a', '00:01.000 b', '00:02.500 c']); // input not changed
+});

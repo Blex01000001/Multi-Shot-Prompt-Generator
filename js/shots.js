@@ -11,7 +11,7 @@ function errorMessage(error) {
 
 // ---------------------------------------------------------------------
 // Actions (list logic lives in core.js: appendShot / duplicateShotAt /
-// removeShotAt / moveShotTo / shiftTimestamp)
+// removeShotAt / moveShotTo / moveShotKeepingTimes / shiftTimestamp)
 // ---------------------------------------------------------------------
 
 // Apply a { shots, active } result from core.js and rebuild the cards.
@@ -235,7 +235,8 @@ function initShotSorting() {
       onEnd: (evt) => {
         const { oldIndex, newIndex } = evt;
         if (oldIndex === newIndex || oldIndex == null || newIndex == null) return;
-        applyShotChange(moveShotTo(state.shots, oldIndex, newIndex, state.activeShotIndex));
+        // Timestamps stay in place; only the cards' content changes order.
+        applyShotChange(moveShotKeepingTimes(state.shots, oldIndex, newIndex, state.activeShotIndex));
       },
     });
   }
