@@ -35,6 +35,9 @@ function moveShot(index, direction) {
 const TS_BOX_BASE = 'ts-box inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 font-mono text-xs sm:text-sm transition-colors';
 const TS_BOX_OK = 'bg-slate-950 border-slate-700/80 focus-within:border-indigo-500';
 const TS_BOX_ERR = 'bg-rose-950/40 border-rose-500 ring-1 ring-rose-500/60';
+const LABEL_BASE = 'shot-label px-2.5 py-1 rounded-lg border font-mono text-xs sm:text-sm font-bold';
+const LABEL_OUT = 'bg-indigo-500/10 border-indigo-500/30 text-indigo-300';
+const LABEL_SKIP = 'bg-slate-800/60 border-slate-700/60 text-slate-400';
 
 function adjustButton(index, delta) {
   const positive = delta > 0;
@@ -64,9 +67,9 @@ function render() {
           <!-- Left: Shot Tag, Timestamp Input, and Fine-tune Buttons -->
           <div class="flex flex-wrap items-center gap-2">
             <button type="button" class="drag-handle -ml-2 p-1 text-slate-500 hover:text-indigo-300 cursor-grab active:cursor-grabbing rounded-md transition-colors" title="${escapeHtml(t('dragHandle'))}" aria-label="${escapeHtml(t('dragHandle'))}">
-              <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M7 4a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zm0 6a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zm-1.5 7.5a1.5 1.5 0 100-3 1.5 1.5 0 000 3zM16 4a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zm-1.5 7.5a1.5 1.5 0 100-3 1.5 1.5 0 000 3zM16 16a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z"/></svg>
+              ${icon('drag', 'w-5 h-5')}
             </button>
-            <span class="shot-label px-2.5 py-1 rounded-lg border font-mono text-xs sm:text-sm font-bold"></span>
+            <span class="${LABEL_BASE}"></span>
 
             <label class="${TS_BOX_BASE} ${TS_BOX_OK}">
               <span class="text-slate-500 select-none">At</span>
@@ -87,21 +90,17 @@ function render() {
           <!-- Right: Move Up/Down, Duplicate, Delete -->
           <div class="flex items-center gap-0.5">
             <button data-index="${index}" data-dir="-1" class="move-shot-btn p-1.5 text-slate-400 hover:text-indigo-300 hover:bg-slate-800 rounded-lg transition-all ${index === 0 ? 'opacity-30 cursor-not-allowed' : ''}" title="${escapeHtml(t('moveUp'))}">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"></path></svg>
+              ${icon('up')}
             </button>
             <button data-index="${index}" data-dir="1" class="move-shot-btn p-1.5 text-slate-400 hover:text-indigo-300 hover:bg-slate-800 rounded-lg transition-all ${index === state.shots.length - 1 ? 'opacity-30 cursor-not-allowed' : ''}" title="${escapeHtml(t('moveDown'))}">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+              ${icon('down')}
             </button>
             <button data-index="${index}" class="duplicate-shot-btn p-1.5 text-slate-400 hover:text-indigo-300 hover:bg-slate-800 rounded-lg transition-all" title="${escapeHtml(t('duplicate'))}">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
-              </svg>
+              ${icon('duplicate')}
             </button>
             ${state.shots.length > 1 ? `
               <button data-index="${index}" class="delete-shot-btn p-1.5 text-slate-400 hover:text-rose-400 hover:bg-slate-800 rounded-lg transition-all" title="${escapeHtml(t('delete'))}">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                </svg>
+                ${icon('trash')}
               </button>
             ` : ''}
           </div>
@@ -109,17 +108,13 @@ function render() {
 
         <!-- Empty shot note -->
         <p class="shot-skip hidden mt-2.5 text-xs sm:text-sm font-medium text-slate-400 flex items-center gap-1.5">
-          <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-          </svg>
+          ${icon('info', 'w-4 h-4 shrink-0')}
           <span>${escapeHtml(t('skipped'))}</span>
         </p>
 
         <!-- Timestamp error message -->
         <p class="ts-error hidden mt-2.5 text-xs sm:text-sm font-semibold text-rose-300 flex items-center gap-1.5">
-          <svg class="w-4 h-4 shrink-0 text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"></path>
-          </svg>
+          ${icon('warning', 'w-4 h-4 shrink-0 text-rose-400')}
           <span class="ts-error-text"></span>
         </p>
       </div>
@@ -166,11 +161,11 @@ function refreshDerived() {
     if (info.outNum) {
       exported += 1;
       label.textContent = `[Shot ${info.outNum}]`;
-      label.className = 'shot-label px-2.5 py-1 rounded-lg border font-mono text-xs sm:text-sm font-bold bg-indigo-500/10 border-indigo-500/30 text-indigo-300';
+      label.className = `${LABEL_BASE} ${LABEL_OUT}`;
       skip.classList.add('hidden');
     } else {
       label.textContent = '[Shot –]';
-      label.className = 'shot-label px-2.5 py-1 rounded-lg border font-mono text-xs sm:text-sm font-bold bg-slate-800/60 border-slate-700/60 text-slate-400';
+      label.className = `${LABEL_BASE} ${LABEL_SKIP}`;
       skip.classList.remove('hidden');
     }
 

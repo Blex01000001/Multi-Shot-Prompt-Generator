@@ -11,7 +11,7 @@
 | `js/tailwind-config.js` | Tailwind CDN 設定（字體、色票） | 主題色、字體 |
 | `js/core.js` | **純邏輯**：時間戳記、輸出格式 `buildPrompt()`、驗證 `analyzeShots()`、標籤資料處理、`DEFAULT_TAGS` | 輸出格式、驗證規則、標籤匯入匯出 |
 | `js/i18n.js` | 介面文字 `MESSAGES`（每個鍵三語並列）、`t()` | 新增或修改任何介面文字 |
-| `js/state.js` | `state`、DOM 元素參照、localStorage 讀寫、`showToast()` | 新增狀態欄位或 DOM 參照 |
+| `js/state.js` | `state`、DOM 元素參照、localStorage 讀寫、`showToast()`、JS 產生的 HTML 用的圖示 `ICONS`／`icon()` | 新增狀態欄位、DOM 參照或圖示 |
 | `js/shots.js` | 鏡頭卡片 HTML、`render()` / `refreshDerived()`、增刪複製移動、拖曳排序 | 卡片外觀與操作 |
 | `js/tags.js` | 標籤列表、標籤管理視窗 | 標籤 UI |
 | `js/app.js` | 語言切換、複製、全域控制、啟動流程 | 頂部按鈕、全域設定 |
