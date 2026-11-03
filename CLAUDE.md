@@ -31,6 +31,8 @@ npm run test:e2e      # 瀏覽器測試，約 10 秒；改到 UI 或行為時跑
 npm run screenshots   # 產生 test-results/screenshots/*.png；改到外觀時用 Read 看圖確認
 ```
 
+- 測試輸出只有點（`.` 通過、`X` 失敗）與失敗細節，結束碼非 0 即失敗；要看每個測試名稱用 `npm run test:verbose`。
+
 - 第一次使用先 `npm install`（只裝測試工具：playwright、tailwindcss、sortablejs；雲端 session 由 SessionStart hook 自動執行）。裝好後測試會用本機的 Tailwind／SortableJS，**不需要連 CDN**（雲端環境連不到 `cdn.tailwindcss.com` 時也能測）。
 - 只跑部分測試：`npm run test:e2e -- --test-name-pattern=tag`；只截部分圖：`npm run screenshots -- zh`。
 - 測試必須全部通過才 commit；不可為了通過而跳過或刪除測試。
