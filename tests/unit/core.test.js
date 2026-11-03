@@ -237,8 +237,9 @@ test('parsePrompt: incomplete text still imports; audio defaults to N/A', () => 
   assert.deepEqual(parsed('[Shot 1] At 00:00.000, only one shot'), {
     shots: ['00:00.000 only one shot'], overallSoundscape: 'N/A', nonDiegeticMusic: 'N/A',
   });
-  // malformed timestamps are kept as-is (the card then shows the usual error)
-  assert.deepEqual(parsed('[Shot 1] At 0:01.5, x').shots, ['0:01.5 x']);
+  // near-miss timestamps are fixed; hopeless ones are kept so the card shows an error
+  assert.deepEqual(parsed('[Shot 1] At 0:01.5, x [Shot 2] At 1:2, y [Shot 3] At 1:2:3, z').shots,
+    ['00:01.500 x', '01:02.000 y', '1:2:3 z']);
   assert.equal(core.parsePrompt('just some text'), null);
   assert.equal(core.parsePrompt(''), null);
   assert.equal(core.parsePrompt(undefined), null);
@@ -250,4 +251,14 @@ test('hasShotContent: any description or non-default audio counts', () => {
   assert.equal(core.hasShotContent({ ...blank, shots: [shot('00:00.000', ' x ')] }), true);
   assert.equal(core.hasShotContent({ ...blank, overallSoundscape: 'rain' }), true);
   assert.equal(core.hasShotContent({ ...blank, nonDiegeticMusic: 'piano' }), true);
+});
+
+test('normalizeTimestamp: fixes common near-miss formats, keeps the rest', () => {
+  const cases = {
+    '0:01.5': '00:01.500', '00:01.5': '00:01.500', '0:1': '00:01.000', '1:2': '01:02.000',
+    '00:01': '00:01.000', '00:01.12345': '00:01.123', '0:75': '01:15.000',
+    '1.5': '00:01.500', '2': '00:02.000', ' 00:02.000 ': '00:02.000',
+    '1:2:3': '1:2:3', 'abc': 'abc', '': '', '123:00.000': '123:00.000',
+  };
+  for (const [input, expected] of Object.entries(cases)) assert.equal(core.normalizeTimestamp(input), expected, input);
 });

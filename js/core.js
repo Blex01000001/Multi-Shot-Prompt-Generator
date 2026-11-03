@@ -42,6 +42,18 @@ function isValidTimestamp(tsString) {
   return TIMESTAMP_RE.test(String(tsString).trim());
 }
 
+// Fix common near-miss timestamps into MM:SS.mmm; anything else is returned
+// unchanged (trimmed) so the card shows the usual "invalid" error.
+//   '0:01.5' → '00:01.500'   '1:2' → '01:02.000'   '00:01.12345' → '00:01.123'
+//   '0:75'   → '01:15.000'   '1.5' → '00:01.500' (seconds only)
+function normalizeTimestamp(tsString) {
+  const ts = String(tsString ?? '').trim();
+  const minSec = ts.match(/^(\d{1,2}):(\d{1,2}(?:\.\d+)?)$/);
+  if (minSec) return formatTimestamp(Number(minSec[1]) * 60 + Number(minSec[2]));
+  if (/^\d{1,2}(?:\.\d+)?$/.test(ts)) return formatTimestamp(Number(ts));
+  return ts;
+}
+
 // Move a timestamp by `seconds` (may be negative); never goes below 00:00.000.
 function shiftTimestamp(tsString, seconds) {
   return formatTimestamp(Math.max(0, parseTimestamp(tsString) + seconds));
@@ -164,7 +176,8 @@ function buildPrompt({ shots, autoPeriod, overallSoundscape, nonDiegeticMusic })
 // -----------------------------------------------------------------------------
 // Prompt text → shots (reverse of buildPrompt, used by "Paste prompt").
 // Lenient: missing field names / audio lines are fine, extra spaces, line
-// breaks, CRLF, non-breaking / zero-width spaces and "---" lines are cleaned.
+// breaks, CRLF, non-breaking / zero-width spaces and "---" lines are cleaned,
+// near-miss timestamps are fixed with normalizeTimestamp().
 // Returns { shots: [{ timestamp, description }], overallSoundscape,
 // nonDiegeticMusic }, or null when no "[Shot N] At ..." is found.
 // -----------------------------------------------------------------------------
@@ -202,7 +215,7 @@ function parsePrompt(text) {
 
   const shots = shotMarks.map((m, i) => {
     const end = i + 1 < shotMarks.length ? shotMarks[i + 1].index : source.length;
-    return { timestamp: m[1].trim(), description: collapseSpaces(source.slice(m.index + m[0].length, end)) };
+    return { timestamp: normalizeTimestamp(m[1]), description: collapseSpaces(source.slice(m.index + m[0].length, end)) };
   });
   const audio = (name) => collapseSpaces(fields[name] || '') || DEFAULT_AUDIO;
   return { shots, overallSoundscape: audio('overall_soundscape'), nonDiegeticMusic: audio('non_diegetic_music') };
@@ -341,6 +354,7 @@ if (typeof module === 'object' && module.exports) {
     formatTimestamp,
     parseTimestamp,
     isValidTimestamp,
+    normalizeTimestamp,
     shiftTimestamp,
     appendShot,
     duplicateShotAt,
