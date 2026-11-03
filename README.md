@@ -45,6 +45,8 @@ non_diegetic_music: N/A
   (dragging keeps the timestamps in place, so only the shot contents change order).
 - **Paste prompt from clipboard**: turn an existing MiniMax H3 prompt back into shot cards
   (asks first if the cards already have content; falls back to a paste box if the browser blocks the clipboard).
+- **Paste into a shot**: the clipboard button on each card pastes plain text into that shot's description,
+  joining line breaks and extra spaces into single spaces (asks first if the shot already has text).
 - **Timestamp check**: highlights malformed timestamps and shots that are not later than the previous output shot.
 - **Auto formatting**: optionally adds a period to the end of each shot.
 - **Prompt tags**: search and click common phrases to insert them into the current shot.

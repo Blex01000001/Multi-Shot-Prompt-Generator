@@ -62,6 +62,11 @@ const SHOTS = [
     await fillSample(page);
     await page.locator('.ts-input').nth(0).fill('00:00.500');
   } },
+  { name: 'mobile-en-shot-paste-confirm', viewport: MOBILE, lang: 'en', setup: async page => {
+    await fillSample(page);
+    await page.evaluate(() => { navigator.clipboard.readText = async () => 'pasted text'; });
+    await page.locator('.paste-shot-btn').nth(0).click();
+  } },
   { name: 'readme', viewport: { width: 1400, height: 860 }, lang: 'en', setup: fillReadme, out: path.join(ROOT, 'docs', 'screenshot.png'), explicit: true },
 ];
 

@@ -14,7 +14,7 @@
 | `js/state.js` | `state`、DOM 元素參照、localStorage 讀寫、`showToast()`、確認視窗 `showConfirm()`（取代 `window.confirm`）、JS 產生的 HTML 用的圖示 `ICONS`／`icon()` | 新增狀態欄位、DOM 參照或圖示 |
 | `js/shots.js` | 鏡頭卡片 HTML、`render()` / `refreshDerived()`、增刪複製移動、拖曳排序 | 卡片外觀與操作 |
 | `js/tags.js` | 標籤列表、標籤管理視窗 | 標籤 UI |
-| `js/paste.js` | 「從剪貼簿貼上 Prompt」：讀剪貼簿（被擋時開貼上視窗）、有內容時先確認再取代卡片 | 貼上／匯入流程 |
+| `js/paste.js` | 「從剪貼簿貼上 Prompt」：讀剪貼簿（被擋時開貼上視窗）、有內容時先確認再取代卡片；卡片的貼上按鈕 `pasteIntoShot()`：用 `cleanShotText()` 整理換行與空白後取代該鏡頭描述，已有文字時先確認（被擋時聚焦文字框請使用者 Ctrl+V） | 貼上／匯入流程 |
 | `js/app.js` | 語言切換、複製、全域控制、啟動流程 | 頂部按鈕、全域設定 |
 | `tests/unit/*.test.js` | Node 單元測試（`core.js`、`i18n.js` 一致性） | 改 `core.js` 時同步補測試 |
 | `tests/e2e/app.test.js` | Playwright 瀏覽器測試 | 新增 UI 功能時補測試 |

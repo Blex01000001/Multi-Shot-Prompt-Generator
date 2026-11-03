@@ -225,6 +225,44 @@ test('paste prompt: asks before replacing existing content', async () => {
   assert.equal((await descriptionValues(page))[0], 'The girl is standing, and the camera is shooting from behind her.');
 });
 
+test('shot paste button: cleans the text and asks before overwriting', async () => {
+  const { page } = await open({ permissions: ['clipboard-read', 'clipboard-write'] });
+  const pasteBtn = (i) => page.locator('.shot-card').nth(i).locator('.paste-shot-btn');
+  await page.evaluate(() => navigator.clipboard.writeText('  a girl\r\n   turns around\n\n slowly  '));
+
+  await pasteBtn(1).click(); // empty card → no question
+  await page.waitForFunction(() => document.querySelectorAll('textarea.shot-input')[1].value !== '');
+  assert.equal(await page.locator('#confirm-modal').isVisible(), false);
+  assert.deepEqual(await descriptionValues(page), ['', 'a girl turns around slowly']);
+  assert.match(await firstLine(page), /\[Shot 1\] At 00:01\.000, a girl turns around slowly\./);
+
+  await descriptions(page).nth(0).fill('keep me');
+  await pasteBtn(0).click();
+  await page.locator('#confirm-modal').waitFor({ state: 'visible' });
+  await page.click('#confirm-cancel');
+  assert.deepEqual(await descriptionValues(page), ['keep me', 'a girl turns around slowly']);
+
+  await pasteBtn(0).click();
+  await page.click('#confirm-ok');
+  await page.waitForFunction(() => document.querySelectorAll('textarea.shot-input')[0].value !== 'keep me');
+  assert.deepEqual(await descriptionValues(page), ['a girl turns around slowly', 'a girl turns around slowly']);
+  assert.equal(await page.locator('.shot-card').count(), 2); // only the text changes, not the cards
+
+  await page.evaluate(() => navigator.clipboard.writeText(' \n '));
+  await pasteBtn(0).click();
+  await page.waitForFunction(() => document.querySelector('#toast-msg').textContent.length > 0 && !document.querySelector('#confirm-modal:not(.hidden)'));
+  assert.equal((await descriptionValues(page))[0], 'a girl turns around slowly');
+});
+
+test('shot paste button: blocked clipboard focuses the text box', async () => {
+  const { page } = await open();
+  await page.evaluate(() => { navigator.clipboard.readText = () => Promise.reject(new Error('denied')); });
+  await page.locator('.shot-card').nth(1).locator('.paste-shot-btn').click();
+  await page.waitForFunction(() => document.activeElement === document.querySelectorAll('textarea.shot-input')[1]);
+  assert.equal(await page.locator('#paste-modal').isVisible(), false);
+  assert.deepEqual(await descriptionValues(page), ['', '']);
+});
+
 test('paste prompt: text without shots changes nothing', async () => {
   const { page } = await open({ permissions: ['clipboard-read', 'clipboard-write'] });
   await descriptions(page).nth(0).fill('keep me');

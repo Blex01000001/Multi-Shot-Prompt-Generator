@@ -211,6 +211,12 @@ function cleanPromptText(text) {
     .trim();
 }
 
+// Clipboard text for a single shot's description: same clean-up as a pasted
+// prompt, then every run of spaces / line breaks becomes one space.
+function cleanShotText(text) {
+  return collapseSpaces(cleanPromptText(text));
+}
+
 function parsePrompt(text) {
   const clean = cleanPromptText(text);
 
@@ -366,6 +372,7 @@ if (typeof module === 'object' && module.exports) {
     TIMESTAMP_RE,
     TIME_STEPS,
     formatTimestamp,
+    cleanShotText,
     parseTimestamp,
     isValidTimestamp,
     normalizeTimestamp,
