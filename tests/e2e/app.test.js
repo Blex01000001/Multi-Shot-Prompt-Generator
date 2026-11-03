@@ -117,6 +117,19 @@ test('add, duplicate, move and delete shots', async () => {
   assert.equal(await page.locator('.delete-shot-btn').count(), 0); // last shot cannot be deleted
 });
 
+test('reminder when the first shot does not start at 00:00.000', async () => {
+  const { page } = await open();
+  await descriptions(page).nth(0).fill('a');
+  const note = page.locator('.shot-card').nth(0).locator('.ts-note');
+  assert.equal(await note.isVisible(), false);
+  await timestamps(page).nth(0).fill('00:00.500');
+  assert.equal(await note.isVisible(), true);
+  assert.equal(await page.locator('#ts-warning').isVisible(), false); // not counted as an error
+  assert.equal(await page.locator('.ts-input[aria-invalid]').count(), 0);
+  await timestamps(page).nth(0).fill('00:00.000');
+  assert.equal(await note.isVisible(), false);
+});
+
 test('reset restores two blank shots and N/A audio', async () => {
   const { page } = await open();
   assert.equal(await page.inputValue('#soundscape-input'), 'N/A');

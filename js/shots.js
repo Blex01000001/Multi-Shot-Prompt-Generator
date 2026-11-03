@@ -132,6 +132,12 @@ function render() {
           ${icon('warning', 'w-4 h-4 shrink-0 text-rose-400')}
           <span class="ts-error-text"></span>
         </p>
+
+        <!-- Timestamp reminder (not an error) -->
+        <p class="ts-note hidden mt-2.5 text-xs sm:text-sm font-medium text-amber-300 flex items-center gap-1.5">
+          ${icon('info', 'w-4 h-4 shrink-0 text-amber-400')}
+          <span>${escapeHtml(t('tsFirstNotZero'))}</span>
+        </p>
       </div>
 
       <div>
@@ -194,6 +200,8 @@ function refreshDerived() {
       tsInput.removeAttribute('aria-invalid');
       errEl.classList.add('hidden');
     }
+
+    card.querySelector('.ts-note').classList.toggle('hidden', !info.warning);
   });
 
   exportedCountEl.textContent = exported === state.shots.length ? '' : t('exportedCount', { n: exported });

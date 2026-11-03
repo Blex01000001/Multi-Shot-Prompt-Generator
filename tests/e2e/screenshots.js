@@ -51,6 +51,10 @@ const SHOTS = [
     await page.evaluate(() => { navigator.clipboard.readText = () => Promise.reject(new Error('denied')); });
     await page.click('#paste-prompt-btn');
   } },
+  { name: 'desktop-zh-first-not-zero', viewport: DESKTOP, lang: 'zh-Hant', setup: async page => {
+    await fillSample(page);
+    await page.locator('.ts-input').nth(0).fill('00:00.500');
+  } },
   { name: 'readme', viewport: { width: 1400, height: 860 }, lang: 'en', setup: fillReadme, out: path.join(ROOT, 'docs', 'screenshot.png'), explicit: true },
 ];
 
