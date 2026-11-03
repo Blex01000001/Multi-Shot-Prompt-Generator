@@ -3,7 +3,7 @@
 // and start-up. Loaded last.
 //
 // Script load order (index.html): core.js → i18n.js → state.js → shots.js →
-// tags.js → app.js. All are classic scripts sharing top-level names.
+// tags.js → paste.js → app.js. All are classic scripts sharing top-level names.
 // =============================================================================
 
 let copyResetTimer = null;
@@ -60,7 +60,7 @@ function renderTimeStepOptions() {
 // Re-apply every translated string on the page.
 function applyLanguage() {
   document.documentElement.lang = currentLang;
-  document.title = t('docTitle');
+  document.title = t('title');
 
   document.querySelectorAll('[data-i18n]').forEach(el => {
     el.textContent = t(el.dataset.i18n);
@@ -125,12 +125,17 @@ function initLanguageMenu() {
 // -----------------------------------------------------------------------------
 // Global controls
 // -----------------------------------------------------------------------------
+// Show the soundscape / music values from state in their inputs.
+function syncAudioInputs() {
+  soundscapeInput.value = state.overallSoundscape;
+  musicInput.value = state.nonDiegeticMusic;
+}
+
 function resetSample() {
-  state.shots = JSON.parse(JSON.stringify(initialShots));
-  state.overallSoundscape = 'N/A';
-  state.nonDiegeticMusic = 'N/A';
-  soundscapeInput.value = 'N/A';
-  musicInput.value = 'N/A';
+  state.shots = createInitialShots();
+  state.overallSoundscape = DEFAULT_AUDIO;
+  state.nonDiegeticMusic = DEFAULT_AUDIO;
+  syncAudioInputs();
   state.activeShotIndex = 0;
   render();
   showToast(t('toastReset'));
@@ -161,11 +166,13 @@ function initGlobalControls() {
     refreshDerived();
   });
 
-  // Escape closes the language menu and the tag manager.
+  // Escape closes the top-most layer: confirm dialog, then paste / tag modal.
   document.addEventListener('keydown', (e) => {
     if (e.key !== 'Escape') return;
     toggleLangMenu(false);
-    if (isTagModalOpen()) closeTagModal();
+    if (isConfirmOpen()) closeConfirm(false);
+    else if (isPasteModalOpen()) closePasteModal();
+    else if (isTagModalOpen()) closeTagModal();
   });
 }
 
@@ -173,8 +180,11 @@ function initGlobalControls() {
 // Start-up
 // -----------------------------------------------------------------------------
 currentLang = loadLang();
+syncAudioInputs();
 initGlobalControls();
 initLanguageMenu();
 initTags();
-initShotSorting();
+initPaste();
+initConfirm();
+initShots();
 applyLanguage();

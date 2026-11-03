@@ -22,19 +22,13 @@ function saveTags() {
   } catch (e) { /* ignore */ }
 }
 
-// Default sample: two blank shots.
-const initialShots = [
-  { id: 1, timestamp: '00:00.000', description: '' },
-  { id: 2, timestamp: '00:01.000', description: '' },
-];
-
 let nextShotId = 100;
 
 const state = {
   tags: loadTags(),
-  shots: JSON.parse(JSON.stringify(initialShots)),
-  overallSoundscape: 'N/A',
-  nonDiegeticMusic: 'N/A',
+  shots: createInitialShots(),
+  overallSoundscape: DEFAULT_AUDIO,
+  nonDiegeticMusic: DEFAULT_AUDIO,
   timeStepSec: 1,
   autoPeriod: true,
   activeShotIndex: 0,
@@ -60,6 +54,13 @@ const tsWarningEl = $('ts-warning');
 const tsWarningTextEl = $('ts-warning-text');
 const addShotBtn = $('add-shot-btn');
 const addShotBottomBtn = $('add-shot-bottom-btn');
+
+// Paste prompt & confirm dialog
+const pastePromptBtn = $('paste-prompt-btn');
+const pasteModal = $('paste-modal');
+const pasteModalText = $('paste-modal-text');
+const pasteModalError = $('paste-modal-error');
+const confirmModal = $('confirm-modal');
 
 // Global controls
 const soundscapeInput = $('soundscape-input');
@@ -92,6 +93,28 @@ const tagImportFile = $('tag-import-file');
 const tagRestoreBtn = $('tag-restore-btn');
 
 // -----------------------------------------------------------------------------
+// Icons for HTML built in JS (static icons stay inline in index.html).
+// icon('trash') → <svg> string; second argument replaces the default classes.
+// -----------------------------------------------------------------------------
+const ICONS = {
+  drag: { fill: true, d: 'M7 4a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zm0 6a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zm-1.5 7.5a1.5 1.5 0 100-3 1.5 1.5 0 000 3zM16 4a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zm-1.5 7.5a1.5 1.5 0 100-3 1.5 1.5 0 000 3zM16 16a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z' },
+  up: { d: 'M5 15l7-7 7 7' },
+  down: { d: 'M19 9l-7 7-7-7' },
+  duplicate: { d: 'M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z' },
+  trash: { d: 'M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16' },
+  edit: { d: 'M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z' },
+  info: { d: 'M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z' },
+  warning: { d: 'M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z' },
+};
+
+function icon(name, cls = 'w-4 h-4') {
+  const { d, fill } = ICONS[name];
+  return fill
+    ? `<svg class="${cls}" fill="currentColor" viewBox="0 0 20 20"><path d="${d}"/></svg>`
+    : `<svg class="${cls}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${d}"></path></svg>`;
+}
+
+// -----------------------------------------------------------------------------
 // Toast
 // -----------------------------------------------------------------------------
 let toastTimer = null;
@@ -109,3 +132,39 @@ function showToast(message) {
     toast.classList.add('translate-y-20', 'opacity-0');
   }, 2500);
 }
+
+// -----------------------------------------------------------------------------
+// Confirm dialog — styled, translated replacement for window.confirm().
+// await showConfirm({ title, message, ok }) → true (OK) / false (cancel,
+// backdrop click or Escape).
+// -----------------------------------------------------------------------------
+let confirmResolve = null;
+
+function isConfirmOpen() {
+  return !confirmModal.classList.contains('hidden');
+}
+
+function closeConfirm(result) {
+  if (!confirmResolve) return;
+  confirmModal.classList.add('hidden');
+  const resolve = confirmResolve;
+  confirmResolve = null;
+  resolve(result);
+}
+
+function showConfirm({ title, message, ok }) {
+  closeConfirm(false);
+  $('confirm-title').textContent = title;
+  $('confirm-message').textContent = message;
+  $('confirm-ok').textContent = ok;
+  confirmModal.classList.remove('hidden');
+  $('confirm-ok').focus();
+  return new Promise(resolve => { confirmResolve = resolve; });
+}
+
+function initConfirm() {
+  $('confirm-ok').addEventListener('click', () => closeConfirm(true));
+  $('confirm-cancel').addEventListener('click', () => closeConfirm(false));
+  $('confirm-backdrop').addEventListener('click', () => closeConfirm(false));
+}
+

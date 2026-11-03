@@ -9,24 +9,38 @@ function errorMessage(error) {
   return t('tsOrder', { prev: `[Shot ${error.prevNum}]`, ts: error.prevTs });
 }
 
-// Adjust timestamp in milliseconds
-function adjustShotTime(index, deltaMs) {
-  const shot = state.shots[index];
-  const currentSecs = parseTimestamp(shot.timestamp);
-  const newSecs = Math.max(0, currentSecs + deltaMs / 1000);
-  shot.timestamp = formatTimestamp(newSecs);
+// ---------------------------------------------------------------------
+// Actions (list logic lives in core.js: appendShot / duplicateShotAt /
+// removeShotAt / moveShotTo / moveShotKeepingTimes / shiftTimestamp)
+// ---------------------------------------------------------------------
+
+// Apply a { shots, active } result from core.js and rebuild the cards.
+function applyShotChange({ shots, active }) {
+  state.shots = shots;
+  state.activeShotIndex = active;
   render();
 }
 
-// Reorder Shots
-function moveShot(index, direction) {
-  const targetIndex = index + direction;
-  if (targetIndex < 0 || targetIndex >= state.shots.length) return;
-  const temp = state.shots[index];
-  state.shots[index] = state.shots[targetIndex];
-  state.shots[targetIndex] = temp;
-  state.activeShotIndex = targetIndex;
+function adjustShotTime(index, deltaMs) {
+  const shot = state.shots[index];
+  shot.timestamp = shiftTimestamp(shot.timestamp, deltaMs / 1000);
   render();
+}
+
+function moveShot(index, direction) {
+  applyShotChange(moveShotTo(state.shots, index, index + direction, index));
+}
+
+function addShot() {
+  applyShotChange(appendShot(state.shots, nextShotId++, state.timeStepSec));
+}
+
+function deleteShot(index) {
+  applyShotChange(removeShotAt(state.shots, index));
+}
+
+function duplicateShot(index) {
+  applyShotChange(duplicateShotAt(state.shots, index, nextShotId++, state.timeStepSec));
 }
 
 // ---------------------------------------------------------------------
@@ -35,15 +49,18 @@ function moveShot(index, direction) {
 const TS_BOX_BASE = 'ts-box inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 font-mono text-xs sm:text-sm transition-colors';
 const TS_BOX_OK = 'bg-slate-950 border-slate-700/80 focus-within:border-indigo-500';
 const TS_BOX_ERR = 'bg-rose-950/40 border-rose-500 ring-1 ring-rose-500/60';
+const LABEL_BASE = 'shot-label px-2.5 py-1 rounded-lg border font-mono text-xs sm:text-sm font-bold';
+const LABEL_OUT = 'bg-indigo-500/10 border-indigo-500/30 text-indigo-300';
+const LABEL_SKIP = 'bg-slate-800/60 border-slate-700/60 text-slate-400';
 
-function adjustButton(index, delta) {
+function adjustButton(delta) {
   const positive = delta > 0;
   const color = positive
     ? 'hover:bg-emerald-950/80 text-emerald-300 hover:border-emerald-500/60'
     : 'hover:bg-rose-950/80 text-rose-300 hover:border-rose-500/60';
   const title = positive ? t('adjustPlus', { n: delta }) : t('adjustMinus', { n: Math.abs(delta) });
   const label = `${positive ? '+' : '-'}${Math.abs(delta)}ms`;
-  return `<button data-index="${index}" data-delta="${delta}" title="${escapeHtml(title)}" class="time-adjust-btn px-1.5 py-1 text-[11px] sm:text-xs font-mono font-semibold bg-slate-800/80 border border-slate-700/60 ${color} rounded transition-all active:scale-95">${label}</button>`;
+  return `<button type="button" data-action="nudge" data-delta="${delta}" title="${escapeHtml(title)}" class="time-adjust-btn px-1.5 py-1 text-[11px] sm:text-xs font-mono font-semibold bg-slate-800/80 border border-slate-700/60 ${color} rounded transition-all active:scale-95">${label}</button>`;
 }
 
 function render() {
@@ -64,44 +81,40 @@ function render() {
           <!-- Left: Shot Tag, Timestamp Input, and Fine-tune Buttons -->
           <div class="flex flex-wrap items-center gap-2">
             <button type="button" class="drag-handle -ml-2 p-1 text-slate-500 hover:text-indigo-300 cursor-grab active:cursor-grabbing rounded-md transition-colors" title="${escapeHtml(t('dragHandle'))}" aria-label="${escapeHtml(t('dragHandle'))}">
-              <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M7 4a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zm0 6a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zm-1.5 7.5a1.5 1.5 0 100-3 1.5 1.5 0 000 3zM16 4a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zm-1.5 7.5a1.5 1.5 0 100-3 1.5 1.5 0 000 3zM16 16a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z"/></svg>
+              ${icon('drag', 'w-5 h-5')}
             </button>
-            <span class="shot-label px-2.5 py-1 rounded-lg border font-mono text-xs sm:text-sm font-bold"></span>
+            <span class="${LABEL_BASE}"></span>
 
             <label class="${TS_BOX_BASE} ${TS_BOX_OK}">
               <span class="text-slate-500 select-none">At</span>
-              <input type="text" data-index="${index}" data-field="timestamp" value="${escapeHtml(shot.timestamp)}"
+              <input type="text" data-field="timestamp" value="${escapeHtml(shot.timestamp)}"
                 size="9" maxlength="9" spellcheck="false" autocomplete="off" inputmode="decimal"
                 class="shot-input ts-input bg-transparent p-0 border-0 font-mono text-xs sm:text-sm text-indigo-200 focus:outline-none focus:ring-0">
             </label>
 
             <!-- Timestamp Fine-tune Buttons (+/- 100ms, +/- 500ms) -->
             <div class="flex items-center gap-1 bg-slate-950/80 p-1 rounded-lg border border-slate-800">
-              ${adjustButton(index, -500)}
-              ${adjustButton(index, -100)}
-              ${adjustButton(index, 100)}
-              ${adjustButton(index, 500)}
+              ${adjustButton(-500)}
+              ${adjustButton(-100)}
+              ${adjustButton(100)}
+              ${adjustButton(500)}
             </div>
           </div>
 
           <!-- Right: Move Up/Down, Duplicate, Delete -->
           <div class="flex items-center gap-0.5">
-            <button data-index="${index}" data-dir="-1" class="move-shot-btn p-1.5 text-slate-400 hover:text-indigo-300 hover:bg-slate-800 rounded-lg transition-all ${index === 0 ? 'opacity-30 cursor-not-allowed' : ''}" title="${escapeHtml(t('moveUp'))}">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"></path></svg>
+            <button type="button" data-action="move" data-dir="-1" class="move-shot-btn p-1.5 text-slate-400 hover:text-indigo-300 hover:bg-slate-800 rounded-lg transition-all ${index === 0 ? 'opacity-30 cursor-not-allowed' : ''}" title="${escapeHtml(t('moveUp'))}">
+              ${icon('up')}
             </button>
-            <button data-index="${index}" data-dir="1" class="move-shot-btn p-1.5 text-slate-400 hover:text-indigo-300 hover:bg-slate-800 rounded-lg transition-all ${index === state.shots.length - 1 ? 'opacity-30 cursor-not-allowed' : ''}" title="${escapeHtml(t('moveDown'))}">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+            <button type="button" data-action="move" data-dir="1" class="move-shot-btn p-1.5 text-slate-400 hover:text-indigo-300 hover:bg-slate-800 rounded-lg transition-all ${index === state.shots.length - 1 ? 'opacity-30 cursor-not-allowed' : ''}" title="${escapeHtml(t('moveDown'))}">
+              ${icon('down')}
             </button>
-            <button data-index="${index}" class="duplicate-shot-btn p-1.5 text-slate-400 hover:text-indigo-300 hover:bg-slate-800 rounded-lg transition-all" title="${escapeHtml(t('duplicate'))}">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
-              </svg>
+            <button type="button" data-action="duplicate" class="duplicate-shot-btn p-1.5 text-slate-400 hover:text-indigo-300 hover:bg-slate-800 rounded-lg transition-all" title="${escapeHtml(t('duplicate'))}">
+              ${icon('duplicate')}
             </button>
             ${state.shots.length > 1 ? `
-              <button data-index="${index}" class="delete-shot-btn p-1.5 text-slate-400 hover:text-rose-400 hover:bg-slate-800 rounded-lg transition-all" title="${escapeHtml(t('delete'))}">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                </svg>
+              <button type="button" data-action="delete" class="delete-shot-btn p-1.5 text-slate-400 hover:text-rose-400 hover:bg-slate-800 rounded-lg transition-all" title="${escapeHtml(t('delete'))}">
+                ${icon('trash')}
               </button>
             ` : ''}
           </div>
@@ -109,23 +122,19 @@ function render() {
 
         <!-- Empty shot note -->
         <p class="shot-skip hidden mt-2.5 text-xs sm:text-sm font-medium text-slate-400 flex items-center gap-1.5">
-          <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-          </svg>
+          ${icon('info', 'w-4 h-4 shrink-0')}
           <span>${escapeHtml(t('skipped'))}</span>
         </p>
 
         <!-- Timestamp error message -->
         <p class="ts-error hidden mt-2.5 text-xs sm:text-sm font-semibold text-rose-300 flex items-center gap-1.5">
-          <svg class="w-4 h-4 shrink-0 text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"></path>
-          </svg>
+          ${icon('warning', 'w-4 h-4 shrink-0 text-rose-400')}
           <span class="ts-error-text"></span>
         </p>
       </div>
 
       <div>
-        <textarea data-index="${index}" data-field="description" rows="3" style="min-height: 110px;"
+        <textarea data-field="description" rows="3" style="min-height: 110px;"
           placeholder="${escapeHtml(t('placeholder'))}"
           class="shot-input w-full bg-slate-950/80 border border-slate-800 focus:border-indigo-500/80 rounded-xl p-3.5 text-xs sm:text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-indigo-500/50 resize-y font-sans leading-relaxed">${escapeHtml(shot.description)}</textarea>
       </div>
@@ -136,9 +145,6 @@ function render() {
 
   // Update Shot Counter
   shotCountBadgeEl.textContent = state.shots.length;
-
-  // Attach Event Listeners to newly rendered inputs
-  attachShotEvents();
 
   // 2. Labels, validation and live output
   refreshDerived();
@@ -166,11 +172,11 @@ function refreshDerived() {
     if (info.outNum) {
       exported += 1;
       label.textContent = `[Shot ${info.outNum}]`;
-      label.className = 'shot-label px-2.5 py-1 rounded-lg border font-mono text-xs sm:text-sm font-bold bg-indigo-500/10 border-indigo-500/30 text-indigo-300';
+      label.className = `${LABEL_BASE} ${LABEL_OUT}`;
       skip.classList.add('hidden');
     } else {
       label.textContent = '[Shot –]';
-      label.className = 'shot-label px-2.5 py-1 rounded-lg border font-mono text-xs sm:text-sm font-bold bg-slate-800/60 border-slate-700/60 text-slate-400';
+      label.className = `${LABEL_BASE} ${LABEL_SKIP}`;
       skip.classList.remove('hidden');
     }
 
@@ -217,97 +223,6 @@ function setActiveShot(index) {
   });
 }
 
-// Attach Event Listeners to Input Fields inside Dynamic Cards
-function attachShotEvents() {
-  document.querySelectorAll('.shot-input').forEach(input => {
-    input.addEventListener('focus', (e) => {
-      setActiveShot(parseInt(e.target.dataset.index));
-    });
-
-    input.addEventListener('input', (e) => {
-      const idx = parseInt(e.target.dataset.index);
-      const field = e.target.dataset.field;
-      state.shots[idx][field] = e.target.value;
-      refreshDerived();
-    });
-  });
-
-  // Time Fine-tune Buttons
-  document.querySelectorAll('.time-adjust-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      const idx = parseInt(e.currentTarget.dataset.index);
-      const delta = parseInt(e.currentTarget.dataset.delta);
-      adjustShotTime(idx, delta);
-    });
-  });
-
-  // Move Up / Move Down Buttons
-  document.querySelectorAll('.move-shot-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      const idx = parseInt(e.currentTarget.dataset.index);
-      const dir = parseInt(e.currentTarget.dataset.dir);
-      moveShot(idx, dir);
-    });
-  });
-
-  // Delete Shot Buttons
-  document.querySelectorAll('.delete-shot-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      const idx = parseInt(e.currentTarget.dataset.index);
-      deleteShot(idx);
-    });
-  });
-
-  // Duplicate Shot Buttons
-  document.querySelectorAll('.duplicate-shot-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      const idx = parseInt(e.currentTarget.dataset.index);
-      duplicateShot(idx);
-    });
-  });
-}
-
-// Add Shot Function
-function addShot() {
-  let nextTs = '00:00.000';
-  if (state.shots.length > 0) {
-    const lastTs = state.shots[state.shots.length - 1].timestamp;
-    const lastSecs = parseTimestamp(lastTs);
-    nextTs = formatTimestamp(lastSecs + state.timeStepSec);
-  }
-
-  state.shots.push({
-    id: nextShotId++,
-    timestamp: nextTs,
-    description: ''
-  });
-  state.activeShotIndex = state.shots.length - 1;
-  render();
-}
-
-// Delete Shot Function
-function deleteShot(index) {
-  if (state.shots.length <= 1) return;
-  state.shots.splice(index, 1);
-  state.activeShotIndex = Math.max(0, index - 1);
-  render();
-}
-
-// Duplicate Shot Function
-function duplicateShot(index) {
-  const target = state.shots[index];
-  const targetSecs = parseTimestamp(target.timestamp);
-  const nextTs = formatTimestamp(targetSecs + state.timeStepSec);
-
-  state.shots.splice(index + 1, 0, {
-    id: nextShotId++,
-    timestamp: nextTs,
-    description: target.description
-  });
-  state.activeShotIndex = index + 1;
-  render();
-}
-
 function initShotSorting() {
   // Drag-and-drop reordering (SortableJS). The up/down buttons keep working
   // if the CDN script fails to load.
@@ -320,13 +235,44 @@ function initShotSorting() {
       onEnd: (evt) => {
         const { oldIndex, newIndex } = evt;
         if (oldIndex === newIndex || oldIndex == null || newIndex == null) return;
-        const activeId = state.shots[state.activeShotIndex] && state.shots[state.activeShotIndex].id;
-        const [moved] = state.shots.splice(oldIndex, 1);
-        state.shots.splice(newIndex, 0, moved);
-        const activeIdx = state.shots.findIndex(shot => shot.id === activeId);
-        state.activeShotIndex = activeIdx >= 0 ? activeIdx : newIndex;
-        render();
+        // Timestamps stay in place; only the cards' content changes order.
+        applyShotChange(moveShotKeepingTimes(state.shots, oldIndex, newIndex, state.activeShotIndex));
       },
     });
   }
+}
+
+// Card events are delegated to the list, so they are bound once and survive
+// render(). Buttons say what they do with data-action; the card's data-index
+// says which shot.
+function cardIndex(el) {
+  return parseInt(el.closest('.shot-card').dataset.index, 10);
+}
+
+function handleShotClick(e) {
+  const btn = e.target.closest('[data-action]');
+  if (!btn || !shotsListEl.contains(btn)) return;
+  const index = cardIndex(btn);
+  switch (btn.dataset.action) {
+    case 'nudge': adjustShotTime(index, parseInt(btn.dataset.delta, 10)); break;
+    case 'move': moveShot(index, parseInt(btn.dataset.dir, 10)); break;
+    case 'duplicate': duplicateShot(index); break;
+    case 'delete': deleteShot(index); break;
+  }
+}
+
+function handleShotInput(e) {
+  const field = e.target.dataset.field;
+  if (!field) return;
+  state.shots[cardIndex(e.target)][field] = e.target.value;
+  refreshDerived();
+}
+
+function initShots() {
+  shotsListEl.addEventListener('click', handleShotClick);
+  shotsListEl.addEventListener('input', handleShotInput);
+  shotsListEl.addEventListener('focusin', (e) => {
+    if (e.target.matches('.shot-input')) setActiveShot(cardIndex(e.target));
+  });
+  initShotSorting();
 }

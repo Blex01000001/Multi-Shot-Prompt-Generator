@@ -9,16 +9,18 @@
 | `index.html` | 靜態畫面結構、彈出視窗、`<script>` 載入順序 | 新增區塊／按鈕／輸入欄 |
 | `css/style.css` | Tailwind 以外的少量自訂樣式 | 捲軸、玻璃效果、拖曳狀態 |
 | `js/tailwind-config.js` | Tailwind CDN 設定（字體、色票） | 主題色、字體 |
-| `js/core.js` | **純邏輯**：時間戳記、輸出格式 `buildPrompt()`、驗證 `analyzeShots()`、標籤資料處理、`DEFAULT_TAGS` | 輸出格式、驗證規則、標籤匯入匯出 |
+| `js/core.js` | **純邏輯**：時間戳記、鏡頭增刪複製移動（回傳 `{ shots, active }`）、輸出格式 `buildPrompt()` 與反向解析 `parsePrompt()`、驗證 `analyzeShots()`、預設值、標籤資料處理、`DEFAULT_TAGS` | 輸出格式、驗證規則、鏡頭操作、標籤匯入匯出 |
 | `js/i18n.js` | 介面文字 `MESSAGES`（每個鍵三語並列）、`t()` | 新增或修改任何介面文字 |
-| `js/state.js` | `state`、DOM 元素參照、localStorage 讀寫、`showToast()` | 新增狀態欄位或 DOM 參照 |
+| `js/state.js` | `state`、DOM 元素參照、localStorage 讀寫、`showToast()`、確認視窗 `showConfirm()`（取代 `window.confirm`）、JS 產生的 HTML 用的圖示 `ICONS`／`icon()` | 新增狀態欄位、DOM 參照或圖示 |
 | `js/shots.js` | 鏡頭卡片 HTML、`render()` / `refreshDerived()`、增刪複製移動、拖曳排序 | 卡片外觀與操作 |
 | `js/tags.js` | 標籤列表、標籤管理視窗 | 標籤 UI |
+| `js/paste.js` | 「從剪貼簿貼上 Prompt」：讀剪貼簿（被擋時開貼上視窗）、有內容時先確認再取代卡片 | 貼上／匯入流程 |
 | `js/app.js` | 語言切換、複製、全域控制、啟動流程 | 頂部按鈕、全域設定 |
 | `tests/unit/*.test.js` | Node 單元測試（`core.js`、`i18n.js` 一致性） | 改 `core.js` 時同步補測試 |
 | `tests/e2e/app.test.js` | Playwright 瀏覽器測試 | 新增 UI 功能時補測試 |
 | `tests/e2e/screenshots.js` | 主要畫面截圖 | 新增畫面狀態時加一筆 |
-| `README.md`、`docs/screenshot.png` | 給使用者看的英文介紹、工具連結、截圖 | 功能或輸出格式改變時同步更新 |
+| `.claude/hooks/session-start.sh` | 雲端 session 啟動時自動 `npm install`（沒變就略過） | 新增測試用套件時通常不用改 |
+| `README.md`、`docs/screenshot.png` | 給使用者看的英文介紹、工具連結、截圖 | 功能或輸出格式改變時同步更新；截圖用 `npm run screenshots -- readme` 重產 |
 
 每個 `js/*.js` 開頭都有註解說明職責；函式細節以程式碼與註解為準，不在此重複。
 
@@ -30,7 +32,8 @@ npm run test:e2e      # 瀏覽器測試，約 10 秒；改到 UI 或行為時跑
 npm run screenshots   # 產生 test-results/screenshots/*.png；改到外觀時用 Read 看圖確認
 ```
 
-- 第一次使用先 `npm install`（只裝測試工具：playwright、tailwindcss、sortablejs）。裝好後測試會用本機的 Tailwind／SortableJS，**不需要連 CDN**（雲端環境連不到 `cdn.tailwindcss.com` 時也能測）。
+- 測試輸出只有點（`.` 通過、`X` 失敗）與失敗細節，結束碼非 0 即失敗；要看每個測試名稱用 `npm run test:verbose`。
+- 第一次使用先 `npm install`（只裝測試工具：playwright、tailwindcss、sortablejs；雲端 session 由 SessionStart hook 自動執行）。裝好後測試會用本機的 Tailwind／SortableJS，**不需要連 CDN**（雲端環境連不到 `cdn.tailwindcss.com` 時也能測）。
 - 只跑部分測試：`npm run test:e2e -- --test-name-pattern=tag`；只截部分圖：`npm run screenshots -- zh`。
 - 測試必須全部通過才 commit；不可為了通過而跳過或刪除測試。
 
@@ -38,6 +41,7 @@ npm run screenshots   # 產生 test-results/screenshots/*.png；改到外觀時�
 
 - **新增介面文字**：在 `js/i18n.js` 的 `MESSAGES` 加一筆 `key: { en, 'zh-Hant', ja }`，HTML 用 `data-i18n="key"`（另有 `-title`／`-aria`／`-placeholder`），JS 用 `t('key')`。`npm test` 會檢查三語齊全、`{n}` 參數一致、沒有不存在或未使用的鍵。
 - **新增邏輯**：能不碰 DOM 的就寫進 `core.js` 並在 `tests/unit/core.test.js` 加測試，UI 檔只負責呼叫與顯示。
+- **鏡頭卡片新增按鈕**：在 `render()` 的樣板加 `data-action="…"`，再到 `handleShotClick()` 加一個 `case`（事件綁在清單上，只綁一次；卡片用 `data-index` 表示是第幾個鏡頭）。
 - **新增全域名稱**：所有 `js/*.js` 是共用全域範圍的一般 script，**名稱不可重複**（重複會讓整頁壞掉）。新 DOM 參照放 `state.js`；事件綁定寫在各檔的 `init…()` 函式，由 `app.js` 呼叫，檔案載入時不要有副作用。
 - **新增外部函式庫**：從 jsDelivr／cdnjs 載入並固定版本（不可 `@latest`），失敗時要能退回（參考 `initShotSorting()` 的 `window.Sortable` 檢查）；同時加進 devDependencies 並在 `tests/e2e/helpers.js` 加本機路由。
 

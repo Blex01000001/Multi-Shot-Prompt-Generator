@@ -42,10 +42,86 @@ function isValidTimestamp(tsString) {
   return TIMESTAMP_RE.test(String(tsString).trim());
 }
 
+// Fix common near-miss timestamps into MM:SS.mmm; anything else is returned
+// unchanged (trimmed) so the card shows the usual "invalid" error.
+//   '0:01.5' → '00:01.500'   '1:2' → '01:02.000'   '00:01.12345' → '00:01.123'
+//   '0:75'   → '01:15.000'   '1.5' → '00:01.500' (seconds only)
+function normalizeTimestamp(tsString) {
+  const ts = String(tsString ?? '').trim();
+  const minSec = ts.match(/^(\d{1,2}):(\d{1,2}(?:\.\d+)?)$/);
+  if (minSec) return formatTimestamp(Number(minSec[1]) * 60 + Number(minSec[2]));
+  if (/^\d{1,2}(?:\.\d+)?$/.test(ts)) return formatTimestamp(Number(ts));
+  return ts;
+}
+
+// Move a timestamp by `seconds` (may be negative); never goes below 00:00.000.
+function shiftTimestamp(tsString, seconds) {
+  return formatTimestamp(Math.max(0, parseTimestamp(tsString) + seconds));
+}
+
 // -----------------------------------------------------------------------------
 // Shots → output numbering, validation, prompt text
 // A shot is { id, timestamp, description }.
 // -----------------------------------------------------------------------------
+
+// Value used for an empty soundscape / music field (also the initial value).
+const DEFAULT_AUDIO = 'N/A';
+
+// Starting content (page load and Reset): two blank shots one second apart.
+function createInitialShots() {
+  return [
+    { id: 1, timestamp: '00:00.000', description: '' },
+    { id: 2, timestamp: '00:01.000', description: '' },
+  ];
+}
+
+// -----------------------------------------------------------------------------
+// Shot list operations. Each returns { shots, active }: a new array (the input
+// is not changed) and the index of the shot that should be focused/active.
+// -----------------------------------------------------------------------------
+
+// New blank shot after the last one, `stepSec` later (00:00.000 if the list is empty).
+function appendShot(shots, id, stepSec) {
+  const last = shots[shots.length - 1];
+  const timestamp = last ? shiftTimestamp(last.timestamp, stepSec) : '00:00.000';
+  return { shots: [...shots, { id, timestamp, description: '' }], active: shots.length };
+}
+
+// Copy of shots[index] inserted right after it, `stepSec` later.
+function duplicateShotAt(shots, index, id, stepSec) {
+  const source = shots[index];
+  const copy = { id, timestamp: shiftTimestamp(source.timestamp, stepSec), description: source.description };
+  return { shots: [...shots.slice(0, index + 1), copy, ...shots.slice(index + 1)], active: index + 1 };
+}
+
+// Remove shots[index]; the last remaining shot is never removed.
+function removeShotAt(shots, index) {
+  if (shots.length <= 1) return { shots: shots.slice(), active: 0 };
+  return { shots: shots.filter((_, i) => i !== index), active: Math.max(0, index - 1) };
+}
+
+// Move shots[from] to position `to`. `active` follows the shot that was at
+// activeIndex (pass activeIndex = from to make the moved shot active).
+// Out-of-range indexes leave the order unchanged.
+function moveShotTo(shots, from, to, activeIndex) {
+  const result = shots.slice();
+  if (from !== to && from >= 0 && to >= 0 && from < shots.length && to < shots.length) {
+    const [moved] = result.splice(from, 1);
+    result.splice(to, 0, moved);
+  }
+  const activeShot = shots[activeIndex];
+  const active = activeShot ? result.indexOf(activeShot) : 0;
+  return { shots: result, active };
+}
+
+// Like moveShotTo, but the timestamps stay in their positions: cards change
+// order while the time column keeps its sequence (used by drag-and-drop).
+// Moving the second card to the top swaps the first two times, for example.
+function moveShotKeepingTimes(shots, from, to, activeIndex) {
+  const times = shots.map(shot => shot.timestamp);
+  const { shots: moved, active } = moveShotTo(shots, from, to, activeIndex);
+  return { shots: moved.map((shot, i) => ({ ...shot, timestamp: times[i] })), active };
+}
 
 // For every shot returns { outNum, error }:
 //  - outNum: number in the output ([Shot N]); null for empty shots (skipped).
@@ -100,10 +176,64 @@ function buildPrompt({ shots, autoPeriod, overallSoundscape, nonDiegeticMusic })
     parts.push(`[Shot ${parts.length + 1}] At ${shot.timestamp.trim()}, ${text}`);
   });
 
-  const soundscape = (overallSoundscape || '').trim() || 'N/A';
-  const music = (nonDiegeticMusic || '').trim() || 'N/A';
+  const soundscape = (overallSoundscape || '').trim() || DEFAULT_AUDIO;
+  const music = (nonDiegeticMusic || '').trim() || DEFAULT_AUDIO;
 
   return `integrated_multimodal_description: ${parts.join(' ')}\n\noverall_soundscape: ${soundscape}\nnon_diegetic_music: ${music}`;
+}
+
+// -----------------------------------------------------------------------------
+// Prompt text → shots (reverse of buildPrompt, used by "Paste prompt").
+// Lenient: missing field names / audio lines are fine, extra spaces, line
+// breaks, CRLF, non-breaking / zero-width spaces and "---" lines are cleaned,
+// near-miss timestamps are fixed with normalizeTimestamp().
+// Returns { shots: [{ timestamp, description }], overallSoundscape,
+// nonDiegeticMusic }, or null when no "[Shot N] At ..." is found.
+// -----------------------------------------------------------------------------
+const PROMPT_FIELD_RE = /(integrated_multimodal_description|overall_soundscape|non_diegetic_music)\s*:/gi;
+const SHOT_MARK_RE = /\[\s*shot\s*\d*\s*\]\s*at\s+([0-9:.]+)\s*,?/gi;
+
+function collapseSpaces(str) {
+  return str.replace(/\s+/g, ' ').trim();
+}
+
+function cleanPromptText(text) {
+  return String(text ?? '')
+    .replace(/\r\n?/g, '\n')
+    .replace(/[\u200b\u200c\u200d\ufeff]/g, '')
+    .replace(/\u00a0/g, ' ')
+    .replace(/^[ \t]*[-=]{3,}[ \t]*$/gm, '')
+    .trim();
+}
+
+function parsePrompt(text) {
+  const clean = cleanPromptText(text);
+
+  // Split into { fieldName: value }; text before the first field name is the preamble.
+  const fields = {};
+  const marks = [...clean.matchAll(PROMPT_FIELD_RE)];
+  const preamble = clean.slice(0, marks.length ? marks[0].index : clean.length);
+  marks.forEach((m, i) => {
+    const end = i + 1 < marks.length ? marks[i + 1].index : clean.length;
+    fields[m[1].toLowerCase()] = clean.slice(m.index + m[0].length, end);
+  });
+
+  const source = fields.integrated_multimodal_description ?? preamble;
+  const shotMarks = [...source.matchAll(SHOT_MARK_RE)];
+  if (shotMarks.length === 0) return null;
+
+  const shots = shotMarks.map((m, i) => {
+    const end = i + 1 < shotMarks.length ? shotMarks[i + 1].index : source.length;
+    return { timestamp: normalizeTimestamp(m[1]), description: collapseSpaces(source.slice(m.index + m[0].length, end)) };
+  });
+  const audio = (name) => collapseSpaces(fields[name] || '') || DEFAULT_AUDIO;
+  return { shots, overallSoundscape: audio('overall_soundscape'), nonDiegeticMusic: audio('non_diegetic_music') };
+}
+
+// True when the user has typed anything that a paste / import would overwrite.
+function hasShotContent({ shots, overallSoundscape, nonDiegeticMusic }) {
+  const audioSet = (v) => { const x = (v || '').trim(); return x !== '' && x !== DEFAULT_AUDIO; };
+  return shots.some(shot => shot.description.trim() !== '') || audioSet(overallSoundscape) || audioSet(nonDiegeticMusic);
 }
 
 // Append a prompt tag to a shot description (", " separated).
@@ -233,8 +363,19 @@ if (typeof module === 'object' && module.exports) {
     formatTimestamp,
     parseTimestamp,
     isValidTimestamp,
+    normalizeTimestamp,
+    shiftTimestamp,
+    appendShot,
+    duplicateShotAt,
+    removeShotAt,
+    moveShotTo,
+    moveShotKeepingTimes,
+    DEFAULT_AUDIO,
+    createInitialShots,
     analyzeShots,
     buildPrompt,
+    parsePrompt,
+    hasShotContent,
     appendTagText,
     escapeHtml,
     TAG_LANGS,
