@@ -161,6 +161,59 @@ function buildPrompt({ shots, autoPeriod, overallSoundscape, nonDiegeticMusic })
   return `integrated_multimodal_description: ${parts.join(' ')}\n\noverall_soundscape: ${soundscape}\nnon_diegetic_music: ${music}`;
 }
 
+// -----------------------------------------------------------------------------
+// Prompt text → shots (reverse of buildPrompt, used by "Paste prompt").
+// Lenient: missing field names / audio lines are fine, extra spaces, line
+// breaks, CRLF, non-breaking / zero-width spaces and "---" lines are cleaned.
+// Returns { shots: [{ timestamp, description }], overallSoundscape,
+// nonDiegeticMusic }, or null when no "[Shot N] At ..." is found.
+// -----------------------------------------------------------------------------
+const PROMPT_FIELD_RE = /(integrated_multimodal_description|overall_soundscape|non_diegetic_music)\s*:/gi;
+const SHOT_MARK_RE = /\[\s*shot\s*\d*\s*\]\s*at\s+([0-9:.]+)\s*,?/gi;
+
+function collapseSpaces(str) {
+  return str.replace(/\s+/g, ' ').trim();
+}
+
+function cleanPromptText(text) {
+  return String(text ?? '')
+    .replace(/\r\n?/g, '\n')
+    .replace(/[\u200b\u200c\u200d\ufeff]/g, '')
+    .replace(/\u00a0/g, ' ')
+    .replace(/^[ \t]*[-=]{3,}[ \t]*$/gm, '')
+    .trim();
+}
+
+function parsePrompt(text) {
+  const clean = cleanPromptText(text);
+
+  // Split into { fieldName: value }; text before the first field name is the preamble.
+  const fields = {};
+  const marks = [...clean.matchAll(PROMPT_FIELD_RE)];
+  const preamble = clean.slice(0, marks.length ? marks[0].index : clean.length);
+  marks.forEach((m, i) => {
+    const end = i + 1 < marks.length ? marks[i + 1].index : clean.length;
+    fields[m[1].toLowerCase()] = clean.slice(m.index + m[0].length, end);
+  });
+
+  const source = fields.integrated_multimodal_description ?? preamble;
+  const shotMarks = [...source.matchAll(SHOT_MARK_RE)];
+  if (shotMarks.length === 0) return null;
+
+  const shots = shotMarks.map((m, i) => {
+    const end = i + 1 < shotMarks.length ? shotMarks[i + 1].index : source.length;
+    return { timestamp: m[1].trim(), description: collapseSpaces(source.slice(m.index + m[0].length, end)) };
+  });
+  const audio = (name) => collapseSpaces(fields[name] || '') || DEFAULT_AUDIO;
+  return { shots, overallSoundscape: audio('overall_soundscape'), nonDiegeticMusic: audio('non_diegetic_music') };
+}
+
+// True when the user has typed anything that a paste / import would overwrite.
+function hasShotContent({ shots, overallSoundscape, nonDiegeticMusic }) {
+  const audioSet = (v) => { const x = (v || '').trim(); return x !== '' && x !== DEFAULT_AUDIO; };
+  return shots.some(shot => shot.description.trim() !== '') || audioSet(overallSoundscape) || audioSet(nonDiegeticMusic);
+}
+
 // Append a prompt tag to a shot description (", " separated).
 function appendTagText(description, tagText) {
   if (description.length > 0 && !description.endsWith(' ')) {
@@ -297,6 +350,8 @@ if (typeof module === 'object' && module.exports) {
     createInitialShots,
     analyzeShots,
     buildPrompt,
+    parsePrompt,
+    hasShotContent,
     appendTagText,
     escapeHtml,
     TAG_LANGS,

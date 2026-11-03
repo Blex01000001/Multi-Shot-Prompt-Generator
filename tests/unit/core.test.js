@@ -189,3 +189,65 @@ test('moveShotTo: reorders, active follows its shot, out of range is a no-op', (
   assert.deepEqual(r.shots.map(s => s.description), ['a', 'b', 'c']);
   assert.equal(shots[0].description, 'a');
 });
+
+// ---------------------------------------------------------------------------
+// Prompt text → shots
+// ---------------------------------------------------------------------------
+const parsed = (text) => {
+  const r = core.parsePrompt(text);
+  return r && { ...r, shots: r.shots.map(s => `${s.timestamp} ${s.description}`) };
+};
+
+test('parsePrompt: reads the example pasted by the user (no space between shots)', () => {
+  const text = '---\nintegrated_multimodal_description: [Shot 1] At 00:00.000, The girl is standing, and the camera is shooting from behind her.[Shot 2] At 00:01.000, The girl bent down, her hands resting on her knees.[Shot 3] At 00:02.000, The girl turned her head to look at the camera.\n\noverall_soundscape: N/A\nnon_diegetic_music: N/A\n---';
+  assert.deepEqual(parsed(text), {
+    shots: [
+      '00:00.000 The girl is standing, and the camera is shooting from behind her.',
+      '00:01.000 The girl bent down, her hands resting on her knees.',
+      '00:02.000 The girl turned her head to look at the camera.',
+    ],
+    overallSoundscape: 'N/A',
+    nonDiegeticMusic: 'N/A',
+  });
+});
+
+test('parsePrompt: round-trips buildPrompt output', () => {
+  const input = {
+    shots: [shot('00:00.000', 'a girl smiles.'), shot('00:01.500', 'camera pushes in, low angle.')],
+    autoPeriod: true,
+    overallSoundscape: 'rain on a window',
+    nonDiegeticMusic: 'soft piano',
+  };
+  const r = core.parsePrompt(core.buildPrompt(input));
+  assert.deepEqual(r.shots, input.shots.map(({ timestamp, description }) => ({ timestamp, description })));
+  assert.equal(r.overallSoundscape, 'rain on a window');
+  assert.equal(r.nonDiegeticMusic, 'soft piano');
+});
+
+test('parsePrompt: cleans spaces, line breaks, CRLF and invisible characters', () => {
+  const text = '  \r\n\u200bintegrated_multimodal_description:\r\n  [Shot 1]  At 00:00.000 ,  a girl\r\n   smiles\u00a0 \r\n[shot 2] at 00:01.000, she   waves  \r\n\r\noverall_soundscape:   wind \r\n';
+  assert.deepEqual(parsed(text), {
+    shots: ['00:00.000 a girl smiles', '00:01.000 she waves'],
+    overallSoundscape: 'wind',
+    nonDiegeticMusic: 'N/A',
+  });
+});
+
+test('parsePrompt: incomplete text still imports; audio defaults to N/A', () => {
+  assert.deepEqual(parsed('[Shot 1] At 00:00.000, only one shot'), {
+    shots: ['00:00.000 only one shot'], overallSoundscape: 'N/A', nonDiegeticMusic: 'N/A',
+  });
+  // malformed timestamps are kept as-is (the card then shows the usual error)
+  assert.deepEqual(parsed('[Shot 1] At 0:01.5, x').shots, ['0:01.5 x']);
+  assert.equal(core.parsePrompt('just some text'), null);
+  assert.equal(core.parsePrompt(''), null);
+  assert.equal(core.parsePrompt(undefined), null);
+});
+
+test('hasShotContent: any description or non-default audio counts', () => {
+  const blank = { shots: core.createInitialShots(), overallSoundscape: 'N/A', nonDiegeticMusic: ' ' };
+  assert.equal(core.hasShotContent(blank), false);
+  assert.equal(core.hasShotContent({ ...blank, shots: [shot('00:00.000', ' x ')] }), true);
+  assert.equal(core.hasShotContent({ ...blank, overallSoundscape: 'rain' }), true);
+  assert.equal(core.hasShotContent({ ...blank, nonDiegeticMusic: 'piano' }), true);
+});
