@@ -109,17 +109,20 @@ function render() {
 
           <!-- Right: Move Up/Down, Duplicate, Delete -->
           <div class="flex items-center gap-0.5">
-            <button type="button" data-action="move" data-dir="-1" class="move-shot-btn p-1.5 text-slate-400 hover:text-indigo-300 hover:bg-slate-800 rounded-lg transition-all ${index === 0 ? 'opacity-30 cursor-not-allowed' : ''}" title="${escapeHtml(t('moveUp'))}">
+            <button type="button" data-action="move" data-dir="-1" class="move-shot-btn p-1.5 lg:p-1 text-slate-400 hover:text-indigo-300 hover:bg-slate-800 rounded-lg transition-all ${index === 0 ? 'opacity-30 cursor-not-allowed' : ''}" title="${escapeHtml(t('moveUp'))}">
               ${icon('up')}
             </button>
-            <button type="button" data-action="move" data-dir="1" class="move-shot-btn p-1.5 text-slate-400 hover:text-indigo-300 hover:bg-slate-800 rounded-lg transition-all ${index === state.shots.length - 1 ? 'opacity-30 cursor-not-allowed' : ''}" title="${escapeHtml(t('moveDown'))}">
+            <button type="button" data-action="move" data-dir="1" class="move-shot-btn p-1.5 lg:p-1 text-slate-400 hover:text-indigo-300 hover:bg-slate-800 rounded-lg transition-all ${index === state.shots.length - 1 ? 'opacity-30 cursor-not-allowed' : ''}" title="${escapeHtml(t('moveDown'))}">
               ${icon('down')}
             </button>
-            <button type="button" data-action="duplicate" class="duplicate-shot-btn p-1.5 text-slate-400 hover:text-indigo-300 hover:bg-slate-800 rounded-lg transition-all" title="${escapeHtml(t('duplicate'))}">
+            <button type="button" data-action="paste-text" class="paste-shot-btn p-1.5 lg:p-1 text-slate-400 hover:text-purple-300 hover:bg-slate-800 rounded-lg transition-all" title="${escapeHtml(t('pasteShot'))}" aria-label="${escapeHtml(t('pasteShot'))}">
+              ${icon('paste')}
+            </button>
+            <button type="button" data-action="duplicate" class="duplicate-shot-btn p-1.5 lg:p-1 text-slate-400 hover:text-indigo-300 hover:bg-slate-800 rounded-lg transition-all" title="${escapeHtml(t('duplicate'))}">
               ${icon('duplicate')}
             </button>
             ${state.shots.length > 1 ? `
-              <button type="button" data-action="delete" class="delete-shot-btn p-1.5 text-slate-400 hover:text-rose-400 hover:bg-slate-800 rounded-lg transition-all" title="${escapeHtml(t('delete'))}">
+              <button type="button" data-action="delete" class="delete-shot-btn p-1.5 lg:p-1 text-slate-400 hover:text-rose-400 hover:bg-slate-800 rounded-lg transition-all" title="${escapeHtml(t('delete'))}">
                 ${icon('trash')}
               </button>
             ` : ''}
@@ -272,6 +275,7 @@ function handleShotClick(e) {
     case 'nudge': adjustShotTime(index, parseInt(btn.dataset.delta, 10)); break;
     case 'move': moveShot(index, parseInt(btn.dataset.dir, 10)); break;
     case 'zero-time': setShotTimeToZero(index); break;
+    case 'paste-text': pasteIntoShot(index); break;
     case 'duplicate': duplicateShot(index); break;
     case 'delete': deleteShot(index); break;
   }

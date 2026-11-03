@@ -6,7 +6,22 @@
 // Flow: button → navigator.clipboard.readText(); if the browser refuses, a
 // modal with a textarea lets the user paste by hand. When the cards already
 // hold content, showConfirm() asks before replacing them.
+//
+// Each shot card also has a paste button (pasteIntoShot): the clipboard text,
+// cleaned by cleanShotText(), replaces that card's description, asking first
+// when the card already has text.
 // =============================================================================
+
+// Clipboard text, or null when the browser refuses to read it.
+async function readClipboardText() {
+  try {
+    if (!navigator.clipboard || !navigator.clipboard.readText) throw new Error('Clipboard read unavailable');
+    return await navigator.clipboard.readText();
+  } catch (err) {
+    console.warn('Clipboard read failed', err);
+    return null;
+  }
+}
 
 function isPasteModalOpen() {
   return !pasteModal.classList.contains('hidden');
@@ -46,16 +61,39 @@ async function importPromptText(text) {
 }
 
 async function pasteFromClipboard() {
-  let text;
-  try {
-    if (!navigator.clipboard || !navigator.clipboard.readText) throw new Error('Clipboard read unavailable');
-    text = await navigator.clipboard.readText();
-  } catch (err) {
-    console.warn('Clipboard read failed', err);
+  const text = await readClipboardText();
+  if (text === null) {
     openPasteModal();
     return;
   }
   if ((await importPromptText(text)) === 'none') showToast(t('pasteNone'));
+}
+
+// Replace one shot's description with the (cleaned) clipboard text.
+async function pasteIntoShot(index) {
+  const shot = state.shots[index];
+  const textarea = () => shotsListEl.querySelectorAll('textarea.shot-input')[index];
+  const raw = await readClipboardText();
+  if (raw === null) {
+    // Blocked: let the user paste by hand into the card's text box.
+    if (textarea()) textarea().focus();
+    showToast(t('pasteShotBlocked'));
+    return;
+  }
+  const text = cleanShotText(raw);
+  if (!text) {
+    showToast(t('pasteShotEmpty'));
+    return;
+  }
+  if (shot.description.trim()) {
+    const ok = await showConfirm({ title: t('confirmShotTitle'), message: t('confirmShotReplace'), ok: t('replace') });
+    if (!ok || state.shots[index] !== shot) return; // cancelled, or the cards changed meanwhile
+  }
+  shot.description = text;
+  if (textarea()) textarea().value = text;
+  setActiveShot(index);
+  refreshDerived();
+  showToast(t('toastShotPasted'));
 }
 
 async function importFromPasteModal() {

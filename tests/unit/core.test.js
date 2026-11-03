@@ -80,6 +80,13 @@ test('analyzeShots: warns when the first exported shot is not at 00:00.000', () 
   assert.equal(core.analyzeShots([shot('bad', 'a')])[0].warning, null); // invalid format → error only
 });
 
+test('cleanShotText collapses line breaks, spaces and invisible characters', () => {
+  assert.equal(core.cleanShotText('  a girl\r\n  turns\t\taround\u200b \u00a0slowly \n'), 'a girl turns around slowly');
+  assert.equal(core.cleanShotText('first line\n---\nsecond line'), 'first line second line');
+  assert.equal(core.cleanShotText(' \n\u200b '), '');
+  assert.equal(core.cleanShotText(null), '');
+});
+
 test('appendTagText joins with ", "', () => {
   assert.equal(core.appendTagText('', 'x'), 'x');
   assert.equal(core.appendTagText('a', 'x'), 'a, x');
