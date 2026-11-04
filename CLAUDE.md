@@ -101,7 +101,23 @@ non_diegetic_music: <背景音樂，預設 N/A>
 2. **尚待改善項目／問題、已知問題**：還沒做完的、發現但未處理的問題、已知限制。
 3. **建議改善方向或功能**：之後可以考慮的改進或新功能。
 
+## 雲端 session 注意事項
+
+- 沙盒連不到 `cdn.tailwindcss.com`、jsDelivr、Google Fonts、`github.io`；`npm install` 後測試與截圖自動改用 node_modules 的 Tailwind／SortableJS。
+- Playwright 固定 `1.63.0`，對應預裝在 `/opt/pw-browsers` 的瀏覽器；**不要執行 `playwright install`**。
+- 測試已內建伺服器；不要用 `pkill -f "http.server"` 這類會比對到自己指令的寫法。
+- 寫入 `.claude/settings.json` 會被自動模式擋下（自我修改），不要繞過，請使用者手動新增。
+- README 截圖 `npm run screenshots -- readme` 會改到 `docs/screenshot.png`，畫面沒變時不要 commit。
+
+## 使用者的工作習慣
+
+- 回覆用繁體中文；commit 訊息用英文。
+- 訊息常分「待處理事項」（直接改）與「待討論事項」（只分析、給建議，不改程式）。
+- 輸出格式（`buildPrompt()`）、引入建置工具、改架構前先問。
+
 ## Git 規則
+0. 開發分支 `claude/trusting-hopper-wk15uy`；它的 PR 合併後，新工作先從最新 `main` 重開：`git fetch origin main && git checkout -B claude/trusting-hopper-wk15uy origin/main`（推送用 `--force-with-lease`）。
+   使用者說「合併到 main」時：用 GitHub MCP 工具建立 PR 再 merge（`expectedHeadSha` 用完整 40 字元 SHA）。
 1. 每完成一個獨立的修改就 commit
 2. commit 訊息用英文，第一行簡述改了什麼，
   需要時空一行補充原因
