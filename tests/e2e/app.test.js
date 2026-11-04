@@ -262,6 +262,35 @@ test('shot paste button: cleans the text and asks before overwriting', async () 
   assert.equal((await descriptionValues(page))[0], 'a girl turns around slowly');
 });
 
+test('soundscape / music cards: N/A by default, one line, paste button', async () => {
+  const { page } = await open({ permissions: ['clipboard-read', 'clipboard-write'] });
+  assert.equal(await page.inputValue('#soundscape-input'), 'N/A');
+  assert.equal(await page.inputValue('#music-input'), 'N/A');
+  assert.equal(await page.locator('.audio-card').count(), 2);
+  assert.equal(await page.locator('.audio-card .dur-input, .audio-card .move-shot-btn, .audio-card .time-adjust-btn').count(), 0);
+
+  // line breaks typed into the box become spaces, so the output stays "field: value"
+  await page.fill('#soundscape-input', 'light rain\nthunder');
+  assert.equal(await page.inputValue('#soundscape-input'), 'light rain thunder');
+  assert.ok((await output(page)).endsWith('overall_soundscape: light rain thunder\nnon_diegetic_music: N/A'));
+
+  // paste into music: N/A counts as empty, so no question
+  await page.evaluate(() => navigator.clipboard.writeText('  soft\n piano  '));
+  await page.click('[data-audio-paste="music-input"]');
+  await page.waitForFunction(() => document.querySelector('#music-input').value === 'soft piano');
+  assert.equal(await page.locator('#confirm-modal').isVisible(), false);
+  assert.ok((await output(page)).endsWith('non_diegetic_music: soft piano'));
+
+  // soundscape has text: asks first
+  await page.click('[data-audio-paste="soundscape-input"]');
+  await page.locator('#confirm-modal').waitFor({ state: 'visible' });
+  await page.click('#confirm-cancel');
+  assert.equal(await page.inputValue('#soundscape-input'), 'light rain thunder');
+  await page.click('[data-audio-paste="soundscape-input"]');
+  await page.click('#confirm-ok');
+  await page.waitForFunction(() => document.querySelector('#soundscape-input').value === 'soft piano');
+});
+
 test('shot paste button: blocked clipboard focuses the text box', async () => {
   const { page } = await open();
   await page.evaluate(() => { navigator.clipboard.readText = () => Promise.reject(new Error('denied')); });
@@ -411,6 +440,12 @@ test('layout: no horizontal scroll, single-row card header, duration box fits', 
       const where = `${lang} @ ${viewport.width}px`;
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth), viewport.width, `horizontal scroll: ${where}`);
 
+      if (viewport.width < 640) {
+        // phones: action buttons share the [Shot N] row
+        const [labelTop, actionsTop] = await page.evaluate(() => ['.shot-label', '.shot-actions']
+          .map(sel => document.querySelector(sel).getBoundingClientRect().top));
+        assert.ok(Math.abs(labelTop - actionsTop) < 6, `actions not on the [Shot N] row: ${where}`);
+      }
       if (viewport.width >= 1024) {
         // a filled shot shows its start time ("At 00:00.000") in the left column
         await page.locator('textarea.shot-input').nth(0).fill('a girl smiles');

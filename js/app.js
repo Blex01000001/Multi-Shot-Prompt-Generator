@@ -147,14 +147,14 @@ function initGlobalControls() {
   resetBtn.addEventListener('click', resetSample);
   copyBtn.addEventListener('click', copyPromptToClipboard);
 
-  soundscapeInput.addEventListener('input', (e) => {
-    state.overallSoundscape = e.target.value;
-    refreshDerived();
-  });
-
-  musicInput.addEventListener('input', (e) => {
-    state.nonDiegeticMusic = e.target.value;
-    refreshDerived();
+  // Soundscape / music cards: one line of text each (line breaks become
+  // spaces so the prompt keeps its "field: value" lines).
+  [soundscapeInput, musicInput].forEach(input => {
+    input.addEventListener('input', () => {
+      if (/[\r\n]/.test(input.value)) input.value = input.value.replace(/\s*[\r\n]+\s*/g, ' ');
+      state[input.dataset.audio] = input.value;
+      refreshDerived();
+    });
   });
 
   timeStepSelect.addEventListener('change', (e) => {

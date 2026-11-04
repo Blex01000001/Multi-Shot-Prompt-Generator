@@ -7,9 +7,10 @@
 // modal with a textarea lets the user paste by hand. When the cards already
 // hold content, showConfirm() asks before replacing them.
 //
-// Each shot card also has a paste button (pasteIntoShot): the clipboard text,
-// cleaned by cleanShotText(), replaces that card's description, asking first
-// when the card already has text.
+// Each shot card also has a paste button (pasteIntoShot), and so do the
+// soundscape / music cards (pasteIntoAudio): the clipboard text, cleaned by
+// cleanShotText(), replaces that text, asking first when there is text
+// already (N/A counts as empty).
 // =============================================================================
 
 // Clipboard text, or null when the browser refuses to read it.
@@ -69,31 +70,66 @@ async function pasteFromClipboard() {
   if ((await importPromptText(text)) === 'none') showToast(t('pasteNone'));
 }
 
-// Replace one shot's description with the (cleaned) clipboard text.
-async function pasteIntoShot(index) {
-  const shot = state.shots[index];
-  const textarea = () => shotsListEl.querySelectorAll('textarea.shot-input')[index];
+// Read the clipboard, clean it with cleanShotText() and hand it to apply().
+// Asks first when `hasText`; a blocked clipboard focuses `textarea` instead.
+async function pasteCleanText({ textarea, hasText, confirmTitle, confirmMessage, apply }) {
   const raw = await readClipboardText();
   if (raw === null) {
-    // Blocked: let the user paste by hand into the card's text box.
-    if (textarea()) textarea().focus();
+    // Blocked: let the user paste by hand into the text box.
+    if (textarea) textarea.focus();
     showToast(t('pasteShotBlocked'));
-    return;
+    return false;
   }
   const text = cleanShotText(raw);
   if (!text) {
     showToast(t('pasteShotEmpty'));
-    return;
+    return false;
   }
-  if (shot.description.trim()) {
-    const ok = await showConfirm({ title: t('confirmShotTitle'), message: t('confirmShotReplace'), ok: t('replace') });
-    if (!ok || state.shots[index] !== shot) return; // cancelled, or the cards changed meanwhile
+  if (hasText) {
+    const ok = await showConfirm({ title: confirmTitle, message: confirmMessage, ok: t('replace') });
+    if (!ok) return false;
   }
-  shot.description = text;
-  if (textarea()) textarea().value = text;
-  setActiveShot(index);
-  refreshDerived();
-  showToast(t('toastShotPasted'));
+  return apply(text);
+}
+
+// Replace one shot's description with the (cleaned) clipboard text.
+async function pasteIntoShot(index) {
+  const shot = state.shots[index];
+  const textarea = () => shotsListEl.querySelectorAll('textarea.shot-input')[index];
+  await pasteCleanText({
+    textarea: textarea(),
+    hasText: shot.description.trim() !== '',
+    confirmTitle: t('confirmShotTitle'),
+    confirmMessage: t('confirmShotReplace'),
+    apply: (text) => {
+      if (state.shots[index] !== shot) return false; // the cards changed meanwhile
+      shot.description = text;
+      if (textarea()) textarea().value = text;
+      setActiveShot(index);
+      refreshDerived();
+      showToast(t('toastShotPasted'));
+      return true;
+    },
+  });
+}
+
+// Replace the soundscape or music text (N/A counts as empty).
+async function pasteIntoAudio(textarea) {
+  const field = textarea.dataset.audio;
+  const current = state[field].trim();
+  await pasteCleanText({
+    textarea,
+    hasText: current !== '' && current !== DEFAULT_AUDIO,
+    confirmTitle: t('confirmFieldTitle'),
+    confirmMessage: t('confirmFieldReplace'),
+    apply: (text) => {
+      state[field] = text;
+      textarea.value = text;
+      refreshDerived();
+      showToast(t('toastFieldPasted'));
+      return true;
+    },
+  });
 }
 
 async function importFromPasteModal() {
@@ -113,4 +149,7 @@ function initPaste() {
   $('paste-modal-close').addEventListener('click', closePasteModal);
   $('paste-modal-backdrop').addEventListener('click', closePasteModal);
   pasteModalText.addEventListener('input', () => pasteModalError.classList.add('hidden'));
+  document.querySelectorAll('[data-audio-paste]').forEach(btn => {
+    btn.addEventListener('click', () => pasteIntoAudio($(btn.dataset.audioPaste)));
+  });
 }
