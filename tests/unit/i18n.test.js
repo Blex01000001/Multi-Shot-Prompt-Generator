@@ -58,9 +58,9 @@ test('no unused messages', () => {
 
 test('t() fills placeholders and falls back to English', () => {
   setCurrentLang('zh-Hant');
-  assert.equal(t('chars', { n: 3 }), '3 字元');
+  assert.equal(t('exportedCount', { n: 3 }), '（輸出 3 個）');
   setCurrentLang('xx');
-  assert.equal(t('chars', { n: 3 }), '3 chars');
+  assert.equal(t('exportedCount', { n: 3 }), '(3 in output)');
   assert.equal(t('noSuchKey'), 'noSuchKey');
   setCurrentLang('en');
 });

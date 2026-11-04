@@ -66,33 +66,27 @@ function render() {
   state.shots.forEach((shot, index) => {
     const card = document.createElement('div');
     card.dataset.index = index;
-    card.className = `shot-card flex flex-col sm:flex-row gap-3 sm:gap-4 glass-panel rounded-2xl p-5 border transition-all duration-200 ${
+    card.className = `shot-card glass-panel rounded-2xl px-5 pt-5 pb-3 border transition-all duration-200 ${
       state.activeShotIndex === index
         ? 'border-indigo-500/80 bg-slate-900/90 shadow-md shadow-indigo-500/10'
         : 'border-slate-800 hover:border-slate-700'
     }`;
 
     card.innerHTML = `
-      <!-- Left column (desktop, vertically centered) / top row (mobile):
-           [Shot N] label, start time and drag handle -->
-      <div class="flex sm:flex-col items-center sm:justify-center gap-2 shrink-0 sm:w-28">
-        <span class="${LABEL_BASE}"></span>
-        <span class="shot-start font-mono text-xs sm:text-sm text-slate-400 whitespace-nowrap" title="${escapeHtml(t('startTime'))}"></span>
-        <button type="button" class="drag-handle p-1 text-slate-500 hover:text-indigo-300 cursor-grab active:cursor-grabbing rounded-md transition-colors" title="${escapeHtml(t('dragHandle'))}" aria-label="${escapeHtml(t('dragHandle'))}">
-          ${icon('drag', 'w-5 h-5')}
-        </button>
-      </div>
-
-      <!-- Right column: duration row, notes, description -->
-      <div class="flex-1 min-w-0">
       <div class="pb-3.5 mb-3.5 border-b border-slate-800/80">
-        <div class="shot-header flex flex-wrap items-center justify-between gap-2">
-          <!-- Left: Duration Input and Fine-tune Buttons -->
-          <div class="flex flex-wrap items-center gap-2">
+        <div class="shot-header flex flex-wrap items-start justify-between gap-x-3 gap-y-2">
+          <!-- Top left: [Shot N] label with its start time underneath -->
+          <div class="shot-title flex flex-col items-start gap-1 shrink-0">
+            <span class="${LABEL_BASE}"></span>
+            <span class="shot-start pl-0.5 font-mono text-xs text-slate-400 whitespace-nowrap" title="${escapeHtml(t('startTime'))}"></span>
+          </div>
+
+          <!-- Duration Input and Fine-tune Buttons (own row on phones) -->
+          <div class="shot-controls order-3 sm:order-none w-full sm:w-auto flex flex-wrap items-center gap-2 sm:mr-auto">
             <label class="${DUR_BOX_BASE} ${DUR_BOX_OK}" title="${escapeHtml(t('durationLabel'))}">
               <input type="text" data-field="duration" value="${escapeHtml(shot.duration)}"
-                size="5" maxlength="8" spellcheck="false" autocomplete="off" inputmode="decimal" aria-label="${escapeHtml(t('durationLabel'))}"
-                class="shot-input dur-input bg-transparent p-0 border-0 text-right font-mono text-xs sm:text-sm text-indigo-200 focus:outline-none focus:ring-0">
+                maxlength="8" spellcheck="false" autocomplete="off" inputmode="decimal" aria-label="${escapeHtml(t('durationLabel'))}"
+                class="shot-input dur-input w-[4ch] bg-transparent p-0 border-0 text-right font-mono text-xs sm:text-sm text-indigo-200 focus:outline-none focus:ring-0">
               <span class="text-slate-500 select-none">s</span>
             </label>
 
@@ -105,8 +99,8 @@ function render() {
             </div>
           </div>
 
-          <!-- Right: Move Up/Down, Duplicate, Delete -->
-          <div class="flex items-center gap-0.5">
+          <!-- Top right: Move Up/Down, Paste, Duplicate, Delete, Drag handle -->
+          <div class="shot-actions order-2 sm:order-none h-[34px] flex items-center gap-0.5">
             <button type="button" data-action="move" data-dir="-1" class="move-shot-btn p-1.5 lg:p-1 text-slate-400 hover:text-indigo-300 hover:bg-slate-800 rounded-lg transition-all ${index === 0 ? 'opacity-30 cursor-not-allowed' : ''}" title="${escapeHtml(t('moveUp'))}">
               ${icon('up', ACTION_ICON)}
             </button>
@@ -124,27 +118,22 @@ function render() {
                 ${icon('trash', ACTION_ICON)}
               </button>
             ` : ''}
+            <button type="button" class="drag-handle ml-1 p-1.5 lg:p-1 text-slate-500 hover:text-indigo-300 cursor-grab active:cursor-grabbing rounded-lg transition-colors" title="${escapeHtml(t('dragHandle'))}" aria-label="${escapeHtml(t('dragHandle'))}">
+              ${icon('drag', ACTION_ICON)}
+            </button>
           </div>
         </div>
-
-        <!-- Empty shot note -->
-        <p class="shot-skip hidden mt-2.5 text-xs sm:text-sm font-medium text-slate-400 flex items-center gap-1.5">
-          ${icon('info', 'w-4 h-4 shrink-0')}
-          <span>${escapeHtml(t('skipped'))}</span>
-        </p>
-
-        <!-- Duration error message -->
-        <p class="dur-error hidden mt-2.5 text-xs sm:text-sm font-semibold text-rose-300 flex items-center gap-1.5">
-          ${icon('warning', 'w-4 h-4 shrink-0 text-rose-400')}
-          <span>${escapeHtml(t('durInvalid'))}</span>
-        </p>
       </div>
 
-      <div>
-        <textarea data-field="description" rows="3" style="min-height: 110px;"
-          placeholder="${escapeHtml(t('placeholder'))}"
-          class="shot-input w-full bg-slate-950/80 border border-slate-800 focus:border-indigo-500/80 rounded-xl p-3.5 text-xs sm:text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-indigo-500/50 resize-y font-sans leading-relaxed">${escapeHtml(shot.description)}</textarea>
-      </div>
+      <textarea data-field="description" rows="3" style="min-height: 110px;"
+        placeholder="${escapeHtml(t('placeholder'))}"
+        class="shot-input w-full block bg-slate-950/80 border border-slate-800 focus:border-indigo-500/80 rounded-xl p-3.5 text-xs sm:text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-indigo-500/50 resize-y font-sans leading-relaxed">${escapeHtml(shot.description)}</textarea>
+
+      <!-- Message line under the description: always takes one line, so the
+           card height does not change when a message appears. -->
+      <div class="shot-msg h-5 mt-2 text-xs leading-5 min-w-0">
+        <p class="dur-error hidden truncate font-semibold text-rose-300" title="${escapeHtml(t('durInvalid'))}">${escapeHtml(t('durInvalid'))}</p>
+        <p class="shot-skip hidden truncate font-medium text-amber-300" title="${escapeHtml(t('skipped'))}">${escapeHtml(t('skipped'))}</p>
       </div>
     `;
 
@@ -185,7 +174,7 @@ function refreshDerived() {
     } else {
       label.textContent = '[Shot –]';
       label.className = `${LABEL_BASE} ${LABEL_SKIP}`;
-      skip.classList.remove('hidden');
+      skip.classList.toggle('hidden', !!info.error); // an error message takes the line first
     }
 
     if (info.error) {
@@ -213,7 +202,6 @@ function refreshDerived() {
 
   const fullPrompt = currentPrompt();
   outputPreviewEl.textContent = fullPrompt;
-  charCountEl.textContent = t('chars', { n: fullPrompt.length });
   totalDurationEl.textContent = formatTimestamp(totalDuration(state.shots));
 }
 
