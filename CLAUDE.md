@@ -2,6 +2,8 @@
 
 **MiniMax H3 多鏡頭圖生影片提示詞產生器**：純前端靜態網頁，把多個鏡頭（Shot）的時間戳記與描述組合成 MiniMax H3 圖生影片模型使用的結構化 Prompt。無後端、**無建置流程**，直接開 `index.html`（含 `file://`）或部署到 GitHub Pages 即可使用。
 
+**開始新工作前先讀 `docs/TODO.md`**（待辦、已知問題、想法）。
+
 ## 檔案地圖（先看這裡決定要讀哪個檔案）
 
 | 檔案 | 負責 | 常見修改 |
@@ -20,6 +22,7 @@
 | `tests/e2e/app.test.js` | Playwright 瀏覽器測試 | 新增 UI 功能時補測試 |
 | `tests/e2e/screenshots.js` | 主要畫面截圖 | 新增畫面狀態時加一筆 |
 | `.claude/hooks/session-start.sh` | 雲端 session 啟動時自動 `npm install`（沒變就略過） | 新增測試用套件時通常不用改 |
+| `docs/TODO.md` | 目前的待辦、已知問題／限制、想法（只記現況，不記歷史） | 每次 commit 時同步更新（見「TODO 維護規則」） |
 | `README.md`、`docs/screenshot.png` | 給使用者看的英文介紹、工具連結、截圖 | 功能或輸出格式改變時同步更新；截圖用 `npm run screenshots -- readme` 重產 |
 
 每個 `js/*.js` 開頭都有註解說明職責；函式細節以程式碼與註解為準，不在此重複。
@@ -83,6 +86,13 @@ non_diegetic_music: <背景音樂，預設 N/A>
 - `localStorage`：`msp-lang`（語言）、`msp-tags`（標籤陣列）。讀寫都包 `try/catch`，不能用時退回預設值。鏡頭內容目前不保存。
 - 標籤匯出格式：`{ "type": "minimax-h3-prompt-tags", "version": 1, "exportedAt": "…", "tags": [{ "text", "note", "notes"? }] }`；匯入也接受純陣列，採合併、重複（不分大小寫）略過。
 
+## TODO 維護規則（`docs/TODO.md`）
+
+- 每次 commit 時一併更新：做完的項目**刪掉**、新發現的問題或想法**加進去**、已不適用的（例如被新設計取代）刪掉或改寫。
+- 只記目前狀態，不寫完成紀錄或歷史（看 `git log`）；每項一行為主，保持精簡。
+- 待辦標【直接做】／【先討論】／【使用者】；使用者說「做待辦 N」時以這份檔案的編號為準，編號可在整理時重排。
+- 給使用者的三段回報（見下一節）內容要和 `docs/TODO.md` 一致。
+
 ## 每次 commit 後的回報規則
 
 每次 commit（並 push）之後，回覆使用者時必須列出以下三個段落：
@@ -91,7 +101,23 @@ non_diegetic_music: <背景音樂，預設 N/A>
 2. **尚待改善項目／問題、已知問題**：還沒做完的、發現但未處理的問題、已知限制。
 3. **建議改善方向或功能**：之後可以考慮的改進或新功能。
 
+## 雲端 session 注意事項
+
+- 沙盒連不到 `cdn.tailwindcss.com`、jsDelivr、Google Fonts、`github.io`；`npm install` 後測試與截圖自動改用 node_modules 的 Tailwind／SortableJS。
+- Playwright 固定 `1.63.0`，對應預裝在 `/opt/pw-browsers` 的瀏覽器；**不要執行 `playwright install`**。
+- 測試已內建伺服器；不要用 `pkill -f "http.server"` 這類會比對到自己指令的寫法。
+- 寫入 `.claude/settings.json` 會被自動模式擋下（自我修改），不要繞過，請使用者手動新增。
+- README 截圖 `npm run screenshots -- readme` 會改到 `docs/screenshot.png`，畫面沒變時不要 commit。
+
+## 使用者的工作習慣
+
+- 回覆用繁體中文；commit 訊息用英文。
+- 訊息常分「待處理事項」（直接改）與「待討論事項」（只分析、給建議，不改程式）。
+- 輸出格式（`buildPrompt()`）、引入建置工具、改架構前先問。
+
 ## Git 規則
+0. 開發分支 `claude/trusting-hopper-wk15uy`；它的 PR 合併後，新工作先從最新 `main` 重開：`git fetch origin main && git checkout -B claude/trusting-hopper-wk15uy origin/main`（推送用 `--force-with-lease`）。
+   使用者說「合併到 main」時：用 GitHub MCP 工具建立 PR 再 merge（`expectedHeadSha` 用完整 40 字元 SHA）。
 1. 每完成一個獨立的修改就 commit
 2. commit 訊息用英文，第一行簡述改了什麼，
   需要時空一行補充原因
