@@ -35,7 +35,10 @@ test.afterEach(async () => {
 const output = (page) => page.locator('#output-preview').textContent();
 const firstLine = async (page) => (await output(page)).split('\n')[0];
 const descriptions = (page) => page.locator('textarea.shot-input');
-const timestamps = (page) => page.locator('.ts-input');
+const descriptionValues = (page) => descriptions(page).evaluateAll(els => els.map(e => e.value));
+const durations = (page) => page.locator('.dur-input');
+const durationValues = (page) => durations(page).evaluateAll(els => els.map(e => e.value));
+const starts = (page) => page.locator('.shot-start').allTextContents();
 const labels = (page) => page.locator('.shot-label').allTextContents();
 
 test('loads in English by default without errors', async () => {
@@ -48,94 +51,81 @@ test('loads in English by default without errors', async () => {
   assert.deepEqual(errors, []);
 });
 
-test('empty shots are skipped and the rest renumbered', async () => {
+test('empty shots are skipped, renumbered and left out of the timeline', async () => {
   const { page } = await open();
   await page.click('#add-shot-btn');
   await descriptions(page).nth(0).fill('a girl smiles');
   await descriptions(page).nth(2).fill('camera pushes in');
   assert.equal(await firstLine(page),
-    'integrated_multimodal_description: [Shot 1] At 00:00.000, a girl smiles. [Shot 2] At 00:02.000, camera pushes in.');
+    'integrated_multimodal_description: [Shot 1] At 00:00.000, a girl smiles. [Shot 2] At 00:01.000, camera pushes in.');
   assert.deepEqual(await labels(page), ['[Shot 1]', '[Shot –]', '[Shot 2]']);
+  assert.deepEqual(await starts(page), ['At 00:00.000', 'At –', 'At 00:01.000']);
+  assert.equal(await page.textContent('#total-duration'), '00:02.000');
   assert.equal(await page.locator('.shot-card').nth(1).locator('.shot-skip').isVisible(), true);
   assert.equal(await page.textContent('#exported-count'), '(2 in output)');
 });
-
-test('timestamp problems are highlighted and cleared when fixed', async () => {
+test('durations set the start times; invalid ones are highlighted and tidied on blur', async () => {
   const { page } = await open();
-  await descriptions(page).nth(0).fill('a');
-  await descriptions(page).nth(1).fill('b');
-  await timestamps(page).nth(1).fill('00:00.000');
-  assert.equal(await page.locator('#ts-warning').isVisible(), true);
-  assert.match(await page.locator('.ts-error:visible .ts-error-text').first().textContent(), /later than the previous shot/);
-  assert.equal(await timestamps(page).nth(1).getAttribute('aria-invalid'), 'true');
+  await page.click('#add-shot-btn');
+  for (const [i, text] of ['a', 'b', 'c'].entries()) await descriptions(page).nth(i).fill(text);
+  await durations(page).nth(0).fill('1.5');
+  await durations(page).nth(1).fill('2.25');
+  assert.deepEqual(await starts(page), ['At 00:00.000', 'At 00:01.500', 'At 00:03.750']);
+  assert.equal(await page.textContent('#total-duration'), '00:04.750');
+  assert.match(await firstLine(page), /\[Shot 3\] At 00:03\.750, c\.$/);
 
-  await timestamps(page).nth(1).fill('0:1');
-  assert.match(await page.locator('.ts-error:visible .ts-error-text').first().textContent(), /Invalid timestamp/);
+  await durations(page).nth(1).fill('0');
+  assert.equal(await page.locator('#ts-warning').isVisible(), true);
+  assert.match(await page.locator('.dur-error:visible').first().textContent(), /Invalid duration/);
+  assert.equal(await durations(page).nth(1).getAttribute('aria-invalid'), 'true');
   // typing must not steal focus (cards are not re-rendered while typing)
   assert.deepEqual(await page.evaluate(() => {
     const el = document.activeElement;
     return [el.closest('.shot-card').dataset.index, el.dataset.field];
-  }), ['1', 'timestamp']);
+  }), ['1', 'duration']);
 
-  await timestamps(page).nth(1).fill('00:01.500');
+  await durations(page).nth(1).fill('2,50s');
+  await durations(page).nth(1).blur();
+  assert.equal(await durations(page).nth(1).inputValue(), '2.5');
   assert.equal(await page.locator('#ts-warning').isVisible(), false);
-  assert.equal(await page.locator('.ts-error:visible').count(), 0);
+  assert.equal(await page.locator('.dur-error:visible').count(), 0);
+  assert.equal(await page.textContent('#total-duration'), '00:05.000');
 });
-
-test('timestamp nudge buttons', async () => {
+test('duration nudge buttons', async () => {
   const { page } = await open();
-  const card = page.locator('.shot-card').nth(1);
-  await card.locator('[data-delta="500"]').click();
+  await page.locator('.shot-card').nth(1).locator('[data-delta="500"]').click();
   await page.locator('.shot-card').nth(1).locator('[data-delta="-100"]').click();
-  assert.equal(await timestamps(page).nth(1).inputValue(), '00:01.400');
+  assert.equal(await durations(page).nth(1).inputValue(), '1.4');
   for (let i = 0; i < 4; i++) await page.locator('.shot-card').nth(0).locator('[data-delta="-500"]').click();
-  assert.equal(await timestamps(page).nth(0).inputValue(), '00:00.000'); // never below zero
+  assert.equal(await durations(page).nth(0).inputValue(), '0.1'); // never below 0.1 s
 });
-
-test('add, duplicate, move and delete shots', async () => {
+test('add, duplicate, move and delete shots (durations move with the card)', async () => {
   const { page } = await open();
   await descriptions(page).nth(0).fill('first');
   await descriptions(page).nth(1).fill('second');
+  await durations(page).nth(0).fill('2.0');
   await page.locator('.shot-card').nth(0).locator('.duplicate-shot-btn').click();
-  assert.deepEqual(await descriptions(page).evaluateAll(els => els.map(e => e.value)), ['first', 'first', 'second']);
-  assert.equal(await timestamps(page).nth(1).inputValue(), '00:01.000');
+  assert.deepEqual(await descriptionValues(page), ['first', 'first', 'second']);
+  assert.deepEqual(await durationValues(page), ['2.0', '2.0', '1.0']);
+  assert.deepEqual(await starts(page), ['At 00:00.000', 'At 00:02.000', 'At 00:04.000']);
 
-  await timestamps(page).nth(2).fill('00:02.000');
-  const times = ['00:00.000', '00:01.000', '00:02.000'];
   await page.locator('.shot-card').nth(2).locator('.move-shot-btn[data-dir="-1"]').click();
-  assert.deepEqual(await descriptions(page).evaluateAll(els => els.map(e => e.value)), ['first', 'second', 'first']);
-  // moving swaps the cards but the timestamps stay in place
-  assert.deepEqual(await timestamps(page).evaluateAll(els => els.map(e => e.value)), times);
-  assert.equal(await page.locator('#ts-warning').isVisible(), false);
+  assert.deepEqual(await descriptionValues(page), ['first', 'second', 'first']);
+  assert.deepEqual(await durationValues(page), ['2.0', '1.0', '2.0']);
+  assert.deepEqual(await starts(page), ['At 00:00.000', 'At 00:02.000', 'At 00:03.000']);
   await page.locator('.shot-card').nth(0).locator('.move-shot-btn[data-dir="1"]').click();
-  assert.deepEqual(await descriptions(page).evaluateAll(els => els.map(e => e.value)), ['second', 'first', 'first']);
-  assert.deepEqual(await timestamps(page).evaluateAll(els => els.map(e => e.value)), times);
+  assert.deepEqual(await descriptionValues(page), ['second', 'first', 'first']);
+  assert.deepEqual(await starts(page), ['At 00:00.000', 'At 00:01.000', 'At 00:03.000']);
+  assert.equal(await page.textContent('#total-duration'), '00:05.000');
 
+  await page.click('#add-shot-btn');
+  assert.equal(await durations(page).nth(3).inputValue(), '1.0');
   await page.locator('.shot-card').nth(0).locator('.delete-shot-btn').click();
-  assert.equal(await page.locator('.shot-card').count(), 2);
+  assert.equal(await page.locator('.shot-card').count(), 3);
+  await page.locator('.shot-card').nth(0).locator('.delete-shot-btn').click();
   await page.locator('.shot-card').nth(0).locator('.delete-shot-btn').click();
   assert.equal(await page.locator('.delete-shot-btn').count(), 0); // last shot cannot be deleted
 });
-
-test('reminder when the first shot does not start at 00:00.000', async () => {
-  const { page } = await open();
-  await descriptions(page).nth(0).fill('a');
-  const note = page.locator('.shot-card').nth(0).locator('.ts-note');
-  assert.equal(await note.isVisible(), false);
-  await timestamps(page).nth(0).fill('00:00.500');
-  assert.equal(await note.isVisible(), true);
-  assert.equal(await page.locator('#ts-warning').isVisible(), false); // not counted as an error
-  assert.equal(await page.locator('.ts-input[aria-invalid]').count(), 0);
-  await timestamps(page).nth(0).fill('00:00.000');
-  assert.equal(await note.isVisible(), false);
-
-  await timestamps(page).nth(0).fill('00:00.750');
-  await note.locator('.zero-time-btn').click();
-  assert.equal(await timestamps(page).nth(0).inputValue(), '00:00.000');
-  assert.equal(await page.locator('.ts-note:visible').count(), 0);
-  assert.match(await firstLine(page), /\[Shot 1\] At 00:00\.000, a\./);
-});
-
 test('reset restores two blank shots and N/A audio', async () => {
   const { page } = await open();
   assert.equal(await page.inputValue('#soundscape-input'), 'N/A');
@@ -146,7 +136,7 @@ test('reset restores two blank shots and N/A audio', async () => {
   await page.fill('#music-input', 'piano');
   await page.click('#reset-btn');
   assert.equal(await page.locator('.shot-card').count(), 2);
-  assert.deepEqual(await timestamps(page).evaluateAll(els => els.map(e => e.value)), ['00:00.000', '00:01.000']);
+  assert.deepEqual(await durationValues(page), ['1.0', '1.0']);
   assert.equal(await page.inputValue('#soundscape-input'), 'N/A');
   assert.equal(await page.inputValue('#music-input'), 'N/A');
   assert.ok((await output(page)).endsWith('overall_soundscape: N/A\nnon_diegetic_music: N/A'));
@@ -157,6 +147,7 @@ test('drag a card by its handle to reorder', async (t) => {
   if (!(await page.evaluate(() => !!window.Sortable))) return t.skip('SortableJS not available (offline without node_modules)');
   await page.click('#add-shot-btn');
   for (const [i, text] of ['AAA', 'BBB', 'CCC'].entries()) await descriptions(page).nth(i).fill(text);
+  for (const [i, d] of ['1.0', '2.0', '3.0'].entries()) await durations(page).nth(i).fill(d);
 
   const from = await page.locator('.drag-handle').nth(2).boundingBox();
   const to = await page.locator('.drag-handle').nth(0).boundingBox();
@@ -169,10 +160,9 @@ test('drag a card by its handle to reorder', async (t) => {
   await page.mouse.up();
   await page.waitForTimeout(300);
   assert.deepEqual(await descriptions(page).evaluateAll(els => els.map(e => e.value)), ['CCC', 'AAA', 'BBB']);
-  // timestamps stay in place, so the order stays valid
-  assert.deepEqual(await timestamps(page).evaluateAll(els => els.map(e => e.value)), ['00:00.000', '00:01.000', '00:02.000']);
-  assert.equal(await page.locator('#ts-warning').isVisible(), false);
-  assert.match(await firstLine(page), /^integrated_multimodal_description: \[Shot 1\] At 00:00\.000, CCC\. \[Shot 2\] At 00:01\.000, AAA\./);
+  // durations move with the cards; start times are recalculated
+  assert.deepEqual(await durationValues(page), ['3.0', '1.0', '2.0']);
+  assert.match(await firstLine(page), /^integrated_multimodal_description: \[Shot 1\] At 00:00\.000, CCC\. \[Shot 2\] At 00:03\.000, AAA\. \[Shot 3\] At 00:04\.000, BBB\.$/);
 });
 
 test('copy button writes the prompt to the clipboard', async () => {
@@ -184,7 +174,6 @@ test('copy button writes the prompt to the clipboard', async () => {
 });
 
 const PASTED = '---\nintegrated_multimodal_description: [Shot 1] At 00:00.000, The girl is standing, and the camera is shooting from behind her.[Shot 2] At 00:01.000, The girl bent down, her hands resting on her knees.[Shot 3] At 00:02.000, The girl turned her head to look at the camera.\n\noverall_soundscape: light rain\nnon_diegetic_music: N/A\n---';
-const descriptionValues = (page) => descriptions(page).evaluateAll(els => els.map(e => e.value));
 
 test('paste prompt: empty cards are replaced without asking', async () => {
   const { page } = await open({ permissions: ['clipboard-read', 'clipboard-write'] });
@@ -197,7 +186,9 @@ test('paste prompt: empty cards are replaced without asking', async () => {
     'The girl bent down, her hands resting on her knees.',
     'The girl turned her head to look at the camera.',
   ]);
-  assert.deepEqual(await timestamps(page).evaluateAll(els => els.map(e => e.value)), ['00:00.000', '00:01.000', '00:02.000']);
+  // durations are the gaps between the pasted times; the last uses the default duration
+  assert.deepEqual(await durationValues(page), ['1.0', '1.0', '1.0']);
+  assert.equal(await page.textContent('#total-duration'), '00:03.000');
   assert.equal(await page.inputValue('#soundscape-input'), 'light rain');
   assert.equal(await page.inputValue('#music-input'), 'N/A');
   assert.match(await firstLine(page), /behind her\. \[Shot 2\] At 00:01\.000, The girl bent down/);
@@ -234,7 +225,7 @@ test('shot paste button: cleans the text and asks before overwriting', async () 
   await page.waitForFunction(() => document.querySelectorAll('textarea.shot-input')[1].value !== '');
   assert.equal(await page.locator('#confirm-modal').isVisible(), false);
   assert.deepEqual(await descriptionValues(page), ['', 'a girl turns around slowly']);
-  assert.match(await firstLine(page), /\[Shot 1\] At 00:01\.000, a girl turns around slowly\./);
+  assert.match(await firstLine(page), /\[Shot 1\] At 00:00\.000, a girl turns around slowly\./); // the empty first card is not counted
 
   await descriptions(page).nth(0).fill('keep me');
   await pasteBtn(0).click();
@@ -392,7 +383,7 @@ test('language switcher translates the page and is remembered', async () => {
   assert.equal(await page.evaluate(() => document.documentElement.lang), 'zh-Hant');
 });
 
-test('layout: no horizontal scroll, single-row card header, fitted timestamp box', async (t) => {
+test('layout: no horizontal scroll, single-row card header, duration box fits', async (t) => {
   for (const lang of ['en', 'zh-Hant', 'ja']) {
     for (const viewport of [{ width: 1400, height: 900 }, { width: 390, height: 844 }]) {
       const { page, context } = await open({ lang, viewport });
@@ -404,8 +395,10 @@ test('layout: no horizontal scroll, single-row card header, fitted timestamp box
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth), viewport.width, `horizontal scroll: ${where}`);
 
       if (viewport.width >= 1024) {
+        // a filled shot shows its start time ("At 00:00.000") in the left column
+        await page.locator('textarea.shot-input').nth(0).fill('a girl smiles');
         const sameRow = await page.evaluate(() => {
-          const row = document.querySelector('.shot-card > div > div');
+          const row = document.querySelector('.shot-header');
           const tops = [...row.querySelectorAll(':scope > div > *')].map(el => {
             const r = el.getBoundingClientRect();
             return r.top + r.height / 2;
@@ -416,12 +409,12 @@ test('layout: no horizontal scroll, single-row card header, fitted timestamp box
         assert.equal(Math.round(await page.evaluate(() => document.querySelector('header').getBoundingClientRect().height)), 65, `header height: ${where}`);
 
         const [inputWidth, textWidth] = await page.evaluate(() => {
-          const input = document.querySelector('.ts-input');
+          const input = document.querySelector('.dur-input');
           const ctx = document.createElement('canvas').getContext('2d');
           ctx.font = getComputedStyle(input).font;
-          return [input.clientWidth, ctx.measureText(input.value).width];
+          return [input.clientWidth, ctx.measureText('99.999').width];
         });
-        assert.ok(inputWidth >= textWidth && inputWidth - textWidth < 3, `timestamp box ${inputWidth}px vs text ${textWidth}px: ${where}`);
+        assert.ok(inputWidth >= textWidth, `duration box ${inputWidth}px is narrower than "99.999" (${textWidth}px): ${where}`);
       }
       await context.close();
       contexts.pop();
