@@ -53,7 +53,7 @@ async function copyPromptToClipboard() {
 function renderTimeStepOptions() {
   timeStepSelect.innerHTML = TIME_STEPS.map(step => {
     const selected = step === state.timeStepSec ? ' selected' : '';
-    return `<option value="${step}"${selected}>${step.toFixed(1)} ${escapeHtml(t('sec'))} (+${formatTimestamp(step)})</option>`;
+    return `<option value="${step}"${selected}>${step.toFixed(1)} ${escapeHtml(t('sec'))}</option>`;
   }).join('');
 }
 

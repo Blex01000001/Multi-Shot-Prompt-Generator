@@ -83,7 +83,7 @@
               </svg>
               <span data-i18n="seqTitle">Shot Sequence</span>
             </h2>
-            <p data-i18n="seqDesc" class="text-xs sm:text-sm text-slate-400 mt-1">Manage the number of shots and the timestamp step</p>
+            <p data-i18n="seqDesc" class="text-xs sm:text-sm text-slate-400 mt-1">Manage the shots and the default duration of new shots</p>
           </div>
 
           <!-- Total Shots Badge, Paste & Quick Add -->
@@ -110,7 +110,7 @@
         <!-- Quick Settings Grid -->
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-5 mt-5">
           <div>
-            <label for="time-step-select" data-i18n="timeStepLabel" class="block text-xs sm:text-sm font-semibold text-slate-300 mb-1.5">Default time step for new shots</label>
+            <label for="time-step-select" data-i18n="timeStepLabel" class="block text-xs sm:text-sm font-semibold text-slate-300 mb-1.5">Default duration for new shots</label>
             <select id="time-step-select" class="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-3.5 py-2 text-xs sm:text-sm font-medium text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"></select>
           </div>
 
@@ -199,7 +199,13 @@
         <!-- Copy Stats / Helper Note -->
         <div class="mt-2.5 pt-2.5 border-t border-slate-800/80 flex items-center justify-between gap-3 text-xs text-slate-400">
           <span data-i18n="comfyNote">Paste directly into a ComfyUI MiniMax H3 workflow</span>
-          <span id="char-count" class="font-mono text-slate-400 font-semibold shrink-0">0</span>
+          <span class="flex items-center gap-3 shrink-0">
+            <span class="px-2 py-0.5 rounded-lg bg-indigo-500/10 border border-indigo-500/30 text-indigo-200 font-semibold">
+              <span data-i18n="totalDuration">Total duration</span>
+              <span id="total-duration" class="font-mono">00:00.000</span>
+            </span>
+            <span id="char-count" class="font-mono text-slate-400 font-semibold">0</span>
+          </span>
         </div>
       </div>
 

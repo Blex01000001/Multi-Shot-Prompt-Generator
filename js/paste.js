@@ -44,7 +44,7 @@ function closePasteModal() {
 // Replace the cards with the prompt in `text`.
 // Returns 'ok', 'none' (no [Shot N] found) or 'cancelled'.
 async function importPromptText(text) {
-  const result = parsePrompt(text);
+  const result = parsePrompt(text, state.timeStepSec);
   if (!result) return 'none';
   if (hasShotContent(state)) {
     const ok = await showConfirm({ title: t('confirmTitle'), message: t('confirmReplace'), ok: t('replace') });

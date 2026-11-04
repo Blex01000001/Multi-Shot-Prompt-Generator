@@ -14,7 +14,7 @@
 // -----------------------------------------------------------------------------
 const TIMESTAMP_RE = /^\d{2}:[0-5]\d\.\d{3}$/;
 
-// Time-step options offered when adding / duplicating a shot (seconds).
+// Default-duration options for new shots (seconds).
 const TIME_STEPS = [0.8, 1, 1.5, 2, 3];
 
 // Format seconds into a MM:SS.mmm timestamp string.
@@ -54,24 +54,51 @@ function normalizeTimestamp(tsString) {
   return ts;
 }
 
-// Move a timestamp by `seconds` (may be negative); never goes below 00:00.000.
-function shiftTimestamp(tsString, seconds) {
-  return formatTimestamp(Math.max(0, parseTimestamp(tsString) + seconds));
+// -----------------------------------------------------------------------------
+// Shot durations (seconds, e.g. "1.5"). Each shot stores how long it lasts;
+// its "At MM:SS.mmm" start time is the sum of the exported shots before it.
+// -----------------------------------------------------------------------------
+const DURATION_RE = /^\d{1,4}(?:\.\d{1,3})?$/;
+const MIN_DURATION_SEC = 0.1;
+
+// Seconds → "1.0", "1.5", "1.25" (millisecond precision, at least one decimal).
+function formatDuration(seconds) {
+  const ms = Math.round(seconds * 1000);
+  return (ms / 1000).toFixed(3).replace(/0+$/, '').replace(/\.$/, '.0');
+}
+
+// "1.5" / " 1.5s " / "1,5" → 1.5; null when not a positive number of seconds.
+function parseDuration(str) {
+  const text = String(str ?? '').trim().replace(/\s*(?:s|sec)$/i, '').replace(',', '.');
+  if (!DURATION_RE.test(text)) return null;
+  const seconds = Number(text);
+  return seconds > 0 ? seconds : null;
+}
+
+// Tidy a typed duration ("1,50s" → "1.5"); invalid input is returned trimmed.
+function normalizeDuration(str) {
+  const seconds = parseDuration(str);
+  return seconds === null ? String(str ?? '').trim() : formatDuration(seconds);
+}
+
+// Change a duration by `seconds` (may be negative); never below MIN_DURATION_SEC.
+function shiftDuration(str, seconds) {
+  return formatDuration(Math.max(MIN_DURATION_SEC, (parseDuration(str) ?? 0) + seconds));
 }
 
 // -----------------------------------------------------------------------------
 // Shots → output numbering, validation, prompt text
-// A shot is { id, timestamp, description }.
+// A shot is { id, duration, description }.
 // -----------------------------------------------------------------------------
 
 // Value used for an empty soundscape / music field (also the initial value).
 const DEFAULT_AUDIO = 'N/A';
 
-// Starting content (page load and Reset): two blank shots one second apart.
+// Starting content (page load and Reset): two blank one-second shots.
 function createInitialShots() {
   return [
-    { id: 1, timestamp: '00:00.000', description: '' },
-    { id: 2, timestamp: '00:01.000', description: '' },
+    { id: 1, duration: '1.0', description: '' },
+    { id: 2, duration: '1.0', description: '' },
   ];
 }
 
@@ -80,17 +107,15 @@ function createInitialShots() {
 // is not changed) and the index of the shot that should be focused/active.
 // -----------------------------------------------------------------------------
 
-// New blank shot after the last one, `stepSec` later (00:00.000 if the list is empty).
-function appendShot(shots, id, stepSec) {
-  const last = shots[shots.length - 1];
-  const timestamp = last ? shiftTimestamp(last.timestamp, stepSec) : '00:00.000';
-  return { shots: [...shots, { id, timestamp, description: '' }], active: shots.length };
+// New blank shot at the end, lasting `durationSec`.
+function appendShot(shots, id, durationSec) {
+  return { shots: [...shots, { id, duration: formatDuration(durationSec), description: '' }], active: shots.length };
 }
 
-// Copy of shots[index] inserted right after it, `stepSec` later.
-function duplicateShotAt(shots, index, id, stepSec) {
+// Copy of shots[index] (same duration and text) inserted right after it.
+function duplicateShotAt(shots, index, id) {
   const source = shots[index];
-  const copy = { id, timestamp: shiftTimestamp(source.timestamp, stepSec), description: source.description };
+  const copy = { id, duration: source.duration, description: source.description };
   return { shots: [...shots.slice(0, index + 1), copy, ...shots.slice(index + 1)], active: index + 1 };
 }
 
@@ -100,7 +125,8 @@ function removeShotAt(shots, index) {
   return { shots: shots.filter((_, i) => i !== index), active: Math.max(0, index - 1) };
 }
 
-// Move shots[from] to position `to`. `active` follows the shot that was at
+// Move shots[from] to position `to` (its duration moves with it, so the start
+// times of the shots in between change). `active` follows the shot that was at
 // activeIndex (pass activeIndex = from to make the moved shot active).
 // Out-of-range indexes leave the order unchanged.
 function moveShotTo(shots, from, to, activeIndex) {
@@ -114,51 +140,34 @@ function moveShotTo(shots, from, to, activeIndex) {
   return { shots: result, active };
 }
 
-// Like moveShotTo, but the timestamps stay in their positions: cards change
-// order while the time column keeps its sequence (used by drag-and-drop).
-// Moving the second card to the top swaps the first two times, for example.
-function moveShotKeepingTimes(shots, from, to, activeIndex) {
-  const times = shots.map(shot => shot.timestamp);
-  const { shots: moved, active } = moveShotTo(shots, from, to, activeIndex);
-  return { shots: moved.map((shot, i) => ({ ...shot, timestamp: times[i] })), active };
-}
-
-// For every shot returns { outNum, error }:
+// For every shot returns { outNum, start, error }:
 //  - outNum: number in the output ([Shot N]); null for empty shots (skipped).
-//  - error:  null | { type: 'invalid' } | { type: 'order', prevNum, prevTs }
-//  - warning: null | { type: 'firstNotZero' } — the first exported shot has
-//    a valid timestamp other than 00:00.000 (a reminder, not an error).
-// Format is checked for every shot; ordering only between consecutive
-// exported (non-empty) shots, and the later one must be strictly greater.
+//  - start:  "MM:SS.mmm" start time; null for empty shots. The first exported
+//            shot starts at 00:00.000, each later one when the previous ends.
+//  - error:  null | { type: 'invalid' } (duration is not seconds > 0).
+// Empty shots are not part of the timeline: their duration is not counted
+// (but is still checked). An invalid duration counts as 0.
 function analyzeShots(shots) {
   let outNum = 0;
-  let prev = null;
+  let elapsed = 0;
   return shots.map(shot => {
-    const text = shot.description.trim();
-    const ts = shot.timestamp.trim();
-    const info = { outNum: null, error: null, warning: null };
-
-    if (!isValidTimestamp(ts)) {
-      info.error = { type: 'invalid' };
-    }
-
-    if (text.length === 0) return info;
+    const seconds = parseDuration(shot.duration);
+    const info = { outNum: null, start: null, error: seconds === null ? { type: 'invalid' } : null };
+    if (shot.description.trim().length === 0) return info;
 
     outNum += 1;
     info.outNum = outNum;
-
-    if (!info.error) {
-      const secs = parseTimestamp(ts);
-      if (prev && secs <= prev.secs) {
-        info.error = { type: 'order', prevNum: prev.outNum, prevTs: prev.ts };
-      }
-      if (outNum === 1 && secs !== 0) {
-        info.warning = { type: 'firstNotZero' };
-      }
-      prev = { secs, outNum, ts };
-    }
+    info.start = formatTimestamp(elapsed);
+    elapsed += seconds ?? 0;
     return info;
   });
+}
+
+// Total length in seconds of the exported (non-empty) shots.
+function totalDuration(shots) {
+  return shots.reduce((sum, shot) => (
+    shot.description.trim() ? sum + (parseDuration(shot.duration) ?? 0) : sum
+  ), 0);
 }
 
 // Build the MiniMax H3 prompt. See "輸出格式" in CLAUDE.md — do not change the
@@ -169,8 +178,9 @@ function analyzeShots(shots) {
 //   non_diegetic_music: ...
 function buildPrompt({ shots, autoPeriod, overallSoundscape, nonDiegeticMusic }) {
   const parts = [];
+  const analysis = analyzeShots(shots);
 
-  shots.forEach(shot => {
+  shots.forEach((shot, i) => {
     let text = shot.description.trim();
     if (text.length === 0) return; // empty shots are skipped, the rest renumbered
 
@@ -178,7 +188,7 @@ function buildPrompt({ shots, autoPeriod, overallSoundscape, nonDiegeticMusic })
       text += '.';
     }
 
-    parts.push(`[Shot ${parts.length + 1}] At ${shot.timestamp.trim()}, ${text}`);
+    parts.push(`[Shot ${parts.length + 1}] At ${analysis[i].start}, ${text}`);
   });
 
   const soundscape = (overallSoundscape || '').trim() || DEFAULT_AUDIO;
@@ -192,7 +202,10 @@ function buildPrompt({ shots, autoPeriod, overallSoundscape, nonDiegeticMusic })
 // Lenient: missing field names / audio lines are fine, extra spaces, line
 // breaks, CRLF, non-breaking / zero-width spaces and "---" lines are cleaned,
 // near-miss timestamps are fixed with normalizeTimestamp().
-// Returns { shots: [{ timestamp, description }], overallSoundscape,
+// Durations are the gaps between consecutive "At" times; the last shot gets
+// `lastDurationSec`. A gap that is not positive (or an unreadable time) gives
+// an invalid duration so the card shows the error.
+// Returns { shots: [{ duration, description }], overallSoundscape,
 // nonDiegeticMusic }, or null when no "[Shot N] At ..." is found.
 // -----------------------------------------------------------------------------
 const PROMPT_FIELD_RE = /(integrated_multimodal_description|overall_soundscape|non_diegetic_music)\s*:/gi;
@@ -217,7 +230,7 @@ function cleanShotText(text) {
   return collapseSpaces(cleanPromptText(text));
 }
 
-function parsePrompt(text) {
+function parsePrompt(text, lastDurationSec = 1) {
   const clean = cleanPromptText(text);
 
   // Split into { fieldName: value }; text before the first field name is the preamble.
@@ -233,9 +246,17 @@ function parsePrompt(text) {
   const shotMarks = [...source.matchAll(SHOT_MARK_RE)];
   if (shotMarks.length === 0) return null;
 
+  const times = shotMarks.map(m => {
+    const ts = normalizeTimestamp(m[1]);
+    return isValidTimestamp(ts) ? parseTimestamp(ts) : null;
+  });
   const shots = shotMarks.map((m, i) => {
     const end = i + 1 < shotMarks.length ? shotMarks[i + 1].index : source.length;
-    return { timestamp: normalizeTimestamp(m[1]), description: collapseSpaces(source.slice(m.index + m[0].length, end)) };
+    let duration;
+    if (i + 1 === shotMarks.length) duration = formatDuration(lastDurationSec);
+    else if (times[i] === null || times[i + 1] === null) duration = '';
+    else duration = formatDuration(times[i + 1] - times[i]);
+    return { duration, description: collapseSpaces(source.slice(m.index + m[0].length, end)) };
   });
   const audio = (name) => collapseSpaces(fields[name] || '') || DEFAULT_AUDIO;
   return { shots, overallSoundscape: audio('overall_soundscape'), nonDiegeticMusic: audio('non_diegetic_music') };
@@ -376,15 +397,19 @@ if (typeof module === 'object' && module.exports) {
     parseTimestamp,
     isValidTimestamp,
     normalizeTimestamp,
-    shiftTimestamp,
+    DURATION_RE,
+    formatDuration,
+    parseDuration,
+    normalizeDuration,
+    shiftDuration,
     appendShot,
     duplicateShotAt,
     removeShotAt,
     moveShotTo,
-    moveShotKeepingTimes,
     DEFAULT_AUDIO,
     createInitialShots,
     analyzeShots,
+    totalDuration,
     buildPrompt,
     parsePrompt,
     hasShotContent,

@@ -3,7 +3,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const core = require('../../js/core.js');
 
-const shot = (timestamp, description) => ({ id: Math.random(), timestamp, description });
+const shot = (duration, description) => ({ id: Math.random(), duration, description });
 
 test('formatTimestamp / parseTimestamp round-trip', () => {
   assert.equal(core.formatTimestamp(0), '00:00.000');
@@ -19,67 +19,67 @@ test('isValidTimestamp requires exactly MM:SS.mmm', () => {
   for (const bad of ['0:1', '00:60.000', '00:01.5', '00:01', 'aa:bb.ccc', '']) assert.ok(!core.isValidTimestamp(bad), bad);
 });
 
-test('createInitialShots: two blank shots, a fresh copy every call', () => {
+test('createInitialShots: two blank one-second shots, a fresh copy every call', () => {
   const a = core.createInitialShots();
-  assert.deepEqual(a.map(s => [s.timestamp, s.description]), [['00:00.000', ''], ['00:01.000', '']]);
+  assert.deepEqual(a.map(s => [s.duration, s.description]), [['1.0', ''], ['1.0', '']]);
   a[0].description = 'changed';
   assert.equal(core.createInitialShots()[0].description, '');
   assert.equal(core.DEFAULT_AUDIO, 'N/A');
 });
-
-test('buildPrompt: format, spacing, auto period, N/A defaults', () => {
+test('buildPrompt: format, spacing, auto period, N/A defaults; At = sum of earlier durations', () => {
   const out = core.buildPrompt({
-    shots: [shot('00:00.000', 'a girl smiles'), shot('00:01.000', 'camera pushes in.')],
+    shots: [shot('1.5', 'a girl smiles'), shot('2.0', 'camera pushes in.'), shot('1.0', 'she waves')],
     autoPeriod: true,
     overallSoundscape: '',
     nonDiegeticMusic: ' soft piano ',
   });
   assert.equal(out,
-    'integrated_multimodal_description: [Shot 1] At 00:00.000, a girl smiles. [Shot 2] At 00:01.000, camera pushes in.' +
+    'integrated_multimodal_description: [Shot 1] At 00:00.000, a girl smiles. [Shot 2] At 00:01.500, camera pushes in. [Shot 3] At 00:03.500, she waves.' +
     '\n\noverall_soundscape: N/A\nnon_diegetic_music: soft piano');
 });
-
 test('buildPrompt: autoPeriod off leaves text untouched', () => {
-  const out = core.buildPrompt({ shots: [shot('00:00.000', 'no period')], autoPeriod: false });
+  const out = core.buildPrompt({ shots: [shot('1.0', 'no period')], autoPeriod: false });
   assert.match(out, /At 00:00\.000, no period\n/);
 });
-
-test('buildPrompt: empty shots are skipped and the rest renumbered', () => {
+test('buildPrompt: empty shots are skipped, renumbered and not counted in the timeline', () => {
   const out = core.buildPrompt({
-    shots: [shot('00:00.000', 'one'), shot('00:01.000', '   '), shot('00:02.000', 'three')],
+    shots: [shot('1.0', 'one'), shot('5.0', '   '), shot('1.0', 'three')],
     autoPeriod: true,
   });
-  assert.match(out, /^integrated_multimodal_description: \[Shot 1\] At 00:00\.000, one\. \[Shot 2\] At 00:02\.000, three\.\n/);
+  assert.match(out, /^integrated_multimodal_description: \[Shot 1\] At 00:00\.000, one\. \[Shot 2\] At 00:01\.000, three\.\n/);
+});
+test('analyzeShots: numbering and start times skip empty shots', () => {
+  const info = core.analyzeShots([shot('1.0', 'a'), shot('3.0', ''), shot('0.5', 'c'), shot('2.0', 'd')]);
+  assert.deepEqual(info.map(i => i.outNum), [1, null, 2, 3]);
+  assert.deepEqual(info.map(i => i.start), ['00:00.000', null, '00:01.000', '00:01.500']);
+  assert.deepEqual(info.map(i => i.error), [null, null, null, null]);
+});
+test('analyzeShots: durations must be seconds > 0; an invalid one counts as 0', () => {
+  const info = core.analyzeShots([shot('abc', 'a'), shot('0', 'b'), shot('1.0', 'c'), shot('-1', '')]);
+  assert.deepEqual(info.map(i => i.error), [{ type: 'invalid' }, { type: 'invalid' }, null, { type: 'invalid' }]);
+  assert.deepEqual(info.map(i => i.start), ['00:00.000', '00:00.000', '00:00.000', null]);
+});
+test('totalDuration: sum of the exported shots only', () => {
+  assert.equal(core.totalDuration([shot('1.5', 'a'), shot('9', ' '), shot('2.25', 'c'), shot('bad', 'd')]), 3.75);
+  assert.equal(core.totalDuration([shot('1.0', '')]), 0);
+  assert.equal(core.formatTimestamp(core.totalDuration([shot('0.1', 'a'), shot('0.2', 'b')])), '00:00.300');
 });
 
-test('analyzeShots: numbering skips empty shots', () => {
-  const info = core.analyzeShots([shot('00:00.000', 'a'), shot('00:01.000', ''), shot('00:02.000', 'c')]);
-  assert.deepEqual(info.map(i => i.outNum), [1, null, 2]);
-  assert.deepEqual(info.map(i => i.error), [null, null, null]);
+test('formatDuration / parseDuration / normalizeDuration', () => {
+  assert.deepEqual([1, 1.5, 1.25, 0.8, 2.0004, 61].map(core.formatDuration), ['1.0', '1.5', '1.25', '0.8', '2.0', '61.0']);
+  const ok = { '1': 1, '1.5': 1.5, ' 2.25 ': 2.25, '1,5': 1.5, '1.5s': 1.5, '3 sec': 3, '0.001': 0.001 };
+  for (const [input, expected] of Object.entries(ok)) assert.equal(core.parseDuration(input), expected, input);
+  for (const bad of ['', '0', '0.0', '-1', 'abc', '1.2345', '1:00', '.5', null]) assert.equal(core.parseDuration(bad), null, String(bad));
+  assert.equal(core.normalizeDuration(' 1,50s '), '1.5');
+  assert.equal(core.normalizeDuration(' oops '), 'oops');
 });
 
-test('analyzeShots: order must strictly increase between exported shots', () => {
-  const info = core.analyzeShots([shot('00:01.000', 'a'), shot('00:01.000', 'b'), shot('00:00.500', 'c')]);
-  assert.equal(info[0].error, null);
-  assert.deepEqual(info[1].error, { type: 'order', prevNum: 1, prevTs: '00:01.000' });
-  assert.deepEqual(info[2].error, { type: 'order', prevNum: 2, prevTs: '00:01.000' });
+test('shiftDuration: adds seconds, never below 0.1', () => {
+  assert.equal(core.shiftDuration('1.0', 0.5), '1.5');
+  assert.equal(core.shiftDuration('1.0', -0.1), '0.9');
+  assert.equal(core.shiftDuration('0.3', -0.5), '0.1');
+  assert.equal(core.shiftDuration('garbage', 1), '1.0');
 });
-
-test('analyzeShots: empty shots are format-checked but ignored for ordering', () => {
-  const info = core.analyzeShots([shot('00:02.000', 'a'), shot('bad', ''), shot('00:00.000', ''), shot('00:03.000', 'd')]);
-  assert.deepEqual(info[1].error, { type: 'invalid' });
-  assert.equal(info[2].error, null); // earlier time, but empty → not compared
-  assert.equal(info[3].error, null);
-});
-
-test('analyzeShots: warns when the first exported shot is not at 00:00.000', () => {
-  const info = core.analyzeShots([shot('00:00.500', ''), shot('00:01.000', 'b'), shot('00:02.000', 'c')]);
-  assert.deepEqual(info.map(i => i.warning), [null, { type: 'firstNotZero' }, null]);
-  assert.deepEqual(info.map(i => i.error), [null, null, null]); // a reminder, not an error
-  assert.equal(core.analyzeShots([shot('00:00.000', 'a'), shot('00:01.000', 'b')]).some(i => i.warning), false);
-  assert.equal(core.analyzeShots([shot('bad', 'a')])[0].warning, null); // invalid format → error only
-});
-
 test('cleanShotText collapses line breaks, spaces and invisible characters', () => {
   assert.equal(core.cleanShotText('  a girl\r\n  turns\t\taround\u200b \u00a0slowly \n'), 'a girl turns around slowly');
   assert.equal(core.cleanShotText('first line\n---\nsecond line'), 'first line second line');
@@ -152,50 +152,41 @@ test('tagTooltip and tagMatches', () => {
 // ---------------------------------------------------------------------------
 // Shot list operations
 // ---------------------------------------------------------------------------
-const texts = (shots) => shots.map(s => `${s.timestamp} ${s.description}`);
+const texts = (shots) => shots.map(s => `${s.duration} ${s.description}`);
 
-test('shiftTimestamp: adds seconds, clamps at zero', () => {
-  assert.equal(core.shiftTimestamp('00:01.000', 0.5), '00:01.500');
-  assert.equal(core.shiftTimestamp('00:59.900', 0.2), '01:00.100');
-  assert.equal(core.shiftTimestamp('00:00.300', -0.5), '00:00.000');
-  assert.equal(core.shiftTimestamp('garbage', 1), '00:01.000');
-});
-
-test('appendShot: one step after the last shot, or 00:00.000 when empty', () => {
-  const shots = [shot('00:00.000', 'a'), shot('00:02.000', 'b')];
+test('appendShot: blank shot at the end with the given duration', () => {
+  const shots = [shot('1.0', 'a'), shot('2.0', 'b')];
   const r = core.appendShot(shots, 7, 1.5);
-  assert.deepEqual(texts(r.shots), ['00:00.000 a', '00:02.000 b', '00:03.500 ']);
+  assert.deepEqual(texts(r.shots), ['1.0 a', '2.0 b', '1.5 ']);
   assert.equal(r.shots[2].id, 7);
   assert.equal(r.active, 2);
   assert.equal(shots.length, 2); // input not changed
-  assert.deepEqual(texts(core.appendShot([], 1, 1).shots), ['00:00.000 ']);
+  assert.deepEqual(texts(core.appendShot([], 1, 1).shots), ['1.0 ']);
 });
-
-test('duplicateShotAt: copy inserted after the source, one step later', () => {
-  const shots = [shot('00:00.000', 'a'), shot('00:01.000', 'b')];
-  const r = core.duplicateShotAt(shots, 0, 9, 1);
-  assert.deepEqual(texts(r.shots), ['00:00.000 a', '00:01.000 a', '00:01.000 b']);
+test('duplicateShotAt: copy (same duration and text) inserted after the source', () => {
+  const shots = [shot('1.5', 'a'), shot('1.0', 'b')];
+  const r = core.duplicateShotAt(shots, 0, 9);
+  assert.deepEqual(texts(r.shots), ['1.5 a', '1.5 a', '1.0 b']);
   assert.equal(r.shots[1].id, 9);
   assert.equal(r.active, 1);
   assert.equal(shots.length, 2);
 });
-
 test('removeShotAt: removes and focuses the previous shot, keeps the last one', () => {
-  const shots = [shot('00:00.000', 'a'), shot('00:01.000', 'b'), shot('00:02.000', 'c')];
+  const shots = [shot('1.0', 'a'), shot('1.0', 'b'), shot('2.0', 'c')];
   let r = core.removeShotAt(shots, 1);
-  assert.deepEqual(texts(r.shots), ['00:00.000 a', '00:02.000 c']);
+  assert.deepEqual(texts(r.shots), ['1.0 a', '2.0 c']);
   assert.equal(r.active, 0);
   r = core.removeShotAt(shots, 0);
   assert.equal(r.active, 0);
-  r = core.removeShotAt([shot('00:00.000', 'only')], 0);
-  assert.deepEqual(texts(r.shots), ['00:00.000 only']);
+  r = core.removeShotAt([shot('1.0', 'only')], 0);
+  assert.deepEqual(texts(r.shots), ['1.0 only']);
   assert.equal(shots.length, 3);
 });
 
-test('moveShotTo: reorders, active follows its shot, out of range is a no-op', () => {
-  const shots = [shot('00:00.000', 'a'), shot('00:01.000', 'b'), shot('00:02.000', 'c')];
+test('moveShotTo: reorders (durations move along), active follows its shot, out of range is a no-op', () => {
+  const shots = [shot('1.0', 'a'), shot('1.5', 'b'), shot('2.0', 'c')];
   let r = core.moveShotTo(shots, 2, 0, 2); // moved shot stays active
-  assert.deepEqual(r.shots.map(s => s.description), ['c', 'a', 'b']);
+  assert.deepEqual(texts(r.shots), ['2.0 c', '1.0 a', '1.5 b']);
   assert.equal(r.active, 0);
   r = core.moveShotTo(shots, 0, 2, 1); // another shot was active: it keeps focus
   assert.deepEqual(r.shots.map(s => s.description), ['b', 'c', 'a']);
@@ -208,18 +199,18 @@ test('moveShotTo: reorders, active follows its shot, out of range is a no-op', (
 // ---------------------------------------------------------------------------
 // Prompt text → shots
 // ---------------------------------------------------------------------------
-const parsed = (text) => {
-  const r = core.parsePrompt(text);
-  return r && { ...r, shots: r.shots.map(s => `${s.timestamp} ${s.description}`) };
+const parsed = (text, last) => {
+  const r = core.parsePrompt(text, last);
+  return r && { ...r, shots: r.shots.map(s => `${s.duration} ${s.description}`) };
 };
 
 test('parsePrompt: reads the example pasted by the user (no space between shots)', () => {
   const text = '---\nintegrated_multimodal_description: [Shot 1] At 00:00.000, The girl is standing, and the camera is shooting from behind her.[Shot 2] At 00:01.000, The girl bent down, her hands resting on her knees.[Shot 3] At 00:02.000, The girl turned her head to look at the camera.\n\noverall_soundscape: N/A\nnon_diegetic_music: N/A\n---';
   assert.deepEqual(parsed(text), {
     shots: [
-      '00:00.000 The girl is standing, and the camera is shooting from behind her.',
-      '00:01.000 The girl bent down, her hands resting on her knees.',
-      '00:02.000 The girl turned her head to look at the camera.',
+      '1.0 The girl is standing, and the camera is shooting from behind her.',
+      '1.0 The girl bent down, her hands resting on her knees.',
+      '1.0 The girl turned her head to look at the camera.',
     ],
     overallSoundscape: 'N/A',
     nonDiegeticMusic: 'N/A',
@@ -228,13 +219,14 @@ test('parsePrompt: reads the example pasted by the user (no space between shots)
 
 test('parsePrompt: round-trips buildPrompt output', () => {
   const input = {
-    shots: [shot('00:00.000', 'a girl smiles.'), shot('00:01.500', 'camera pushes in, low angle.')],
+    shots: [shot('1.5', 'a girl smiles.'), shot('0.75', 'camera pushes in, low angle.'), shot('2.0', 'she waves.')],
     autoPeriod: true,
     overallSoundscape: 'rain on a window',
     nonDiegeticMusic: 'soft piano',
   };
-  const r = core.parsePrompt(core.buildPrompt(input));
-  assert.deepEqual(r.shots, input.shots.map(({ timestamp, description }) => ({ timestamp, description })));
+  // the last duration is not in the prompt: it comes from the second argument
+  const r = core.parsePrompt(core.buildPrompt(input), 2);
+  assert.deepEqual(r.shots, input.shots.map(({ duration, description }) => ({ duration, description })));
   assert.equal(r.overallSoundscape, 'rain on a window');
   assert.equal(r.nonDiegeticMusic, 'soft piano');
 });
@@ -242,19 +234,21 @@ test('parsePrompt: round-trips buildPrompt output', () => {
 test('parsePrompt: cleans spaces, line breaks, CRLF and invisible characters', () => {
   const text = '  \r\n\u200bintegrated_multimodal_description:\r\n  [Shot 1]  At 00:00.000 ,  a girl\r\n   smiles\u00a0 \r\n[shot 2] at 00:01.000, she   waves  \r\n\r\noverall_soundscape:   wind \r\n';
   assert.deepEqual(parsed(text), {
-    shots: ['00:00.000 a girl smiles', '00:01.000 she waves'],
+    shots: ['1.0 a girl smiles', '1.0 she waves'],
     overallSoundscape: 'wind',
     nonDiegeticMusic: 'N/A',
   });
 });
 
 test('parsePrompt: incomplete text still imports; audio defaults to N/A', () => {
-  assert.deepEqual(parsed('[Shot 1] At 00:00.000, only one shot'), {
-    shots: ['00:00.000 only one shot'], overallSoundscape: 'N/A', nonDiegeticMusic: 'N/A',
+  assert.deepEqual(parsed('[Shot 1] At 00:00.000, only one shot', 1.5), {
+    shots: ['1.5 only one shot'], overallSoundscape: 'N/A', nonDiegeticMusic: 'N/A',
   });
-  // near-miss timestamps are fixed; hopeless ones are kept so the card shows an error
-  assert.deepEqual(parsed('[Shot 1] At 0:01.5, x [Shot 2] At 1:2, y [Shot 3] At 1:2:3, z').shots,
-    ['00:01.500 x', '01:02.000 y', '1:2:3 z']);
+  // near-miss timestamps are fixed; gaps around a hopeless one, or gaps that
+  // are not positive, give invalid durations so the card shows an error
+  assert.deepEqual(parsed('[Shot 1] At 0:01.5, x [Shot 2] At 0:2, y [Shot 3] At 1:2:3, z [Shot 4] At 00:05.000, w').shots,
+    ['0.5 x', ' y', ' z', '1.0 w']);
+  assert.deepEqual(parsed('[Shot 1] At 00:02.000, a [Shot 2] At 00:01.000, b').shots, ['-1.0 a', '1.0 b']);
   assert.equal(core.parsePrompt('just some text'), null);
   assert.equal(core.parsePrompt(''), null);
   assert.equal(core.parsePrompt(undefined), null);
@@ -263,7 +257,7 @@ test('parsePrompt: incomplete text still imports; audio defaults to N/A', () => 
 test('hasShotContent: any description or non-default audio counts', () => {
   const blank = { shots: core.createInitialShots(), overallSoundscape: 'N/A', nonDiegeticMusic: ' ' };
   assert.equal(core.hasShotContent(blank), false);
-  assert.equal(core.hasShotContent({ ...blank, shots: [shot('00:00.000', ' x ')] }), true);
+  assert.equal(core.hasShotContent({ ...blank, shots: [shot('1.0', ' x ')] }), true);
   assert.equal(core.hasShotContent({ ...blank, overallSoundscape: 'rain' }), true);
   assert.equal(core.hasShotContent({ ...blank, nonDiegeticMusic: 'piano' }), true);
 });
@@ -276,15 +270,4 @@ test('normalizeTimestamp: fixes common near-miss formats, keeps the rest', () =>
     '1:2:3': '1:2:3', 'abc': 'abc', '': '', '123:00.000': '123:00.000',
   };
   for (const [input, expected] of Object.entries(cases)) assert.equal(core.normalizeTimestamp(input), expected, input);
-});
-
-test('moveShotKeepingTimes: cards move, timestamps stay in their positions', () => {
-  const shots = [shot('00:00.000', 'a'), shot('00:01.000', 'b'), shot('00:02.500', 'c')];
-  let r = core.moveShotKeepingTimes(shots, 2, 0, 1);
-  assert.deepEqual(texts(r.shots), ['00:00.000 c', '00:01.000 a', '00:02.500 b']);
-  assert.equal(r.active, 2); // the previously active shot ("b") keeps focus
-  assert.equal(r.shots[0].id, shots[2].id);
-  r = core.moveShotKeepingTimes(shots, 0, 1, 0); // neighbours: times are simply swapped
-  assert.deepEqual(texts(r.shots), ['00:00.000 b', '00:01.000 a', '00:02.500 c']);
-  assert.deepEqual(texts(shots), ['00:00.000 a', '00:01.000 b', '00:02.500 c']); // input not changed
 });

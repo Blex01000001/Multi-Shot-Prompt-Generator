@@ -9,10 +9,10 @@
 | `index.html` | 靜態畫面結構、彈出視窗、`<script>` 載入順序 | 新增區塊／按鈕／輸入欄 |
 | `css/style.css` | Tailwind 以外的少量自訂樣式 | 捲軸、玻璃效果、拖曳狀態 |
 | `js/tailwind-config.js` | Tailwind CDN 設定（字體、色票） | 主題色、字體 |
-| `js/core.js` | **純邏輯**：時間戳記、鏡頭增刪複製移動（回傳 `{ shots, active }`；上移／下移與拖曳都用 `moveShotKeepingTimes()`，時間留在原位）、輸出格式 `buildPrompt()` 與反向解析 `parsePrompt()`、驗證 `analyzeShots()`、預設值、標籤資料處理、`DEFAULT_TAGS` | 輸出格式、驗證規則、鏡頭操作、標籤匯入匯出 |
+| `js/core.js` | **純邏輯**：時間戳記與持續時間（`formatDuration`／`parseDuration`／`normalizeDuration`／`shiftDuration`）、鏡頭增刪複製移動（回傳 `{ shots, active }`；持續時間跟著卡片走）、輸出格式 `buildPrompt()` 與反向解析 `parsePrompt()`、驗證與開始時間 `analyzeShots()`、總長度 `totalDuration()`、預設值、標籤資料處理、`DEFAULT_TAGS` | 輸出格式、驗證規則、鏡頭操作、標籤匯入匯出 |
 | `js/i18n.js` | 介面文字 `MESSAGES`（每個鍵三語並列）、`t()` | 新增或修改任何介面文字 |
 | `js/state.js` | `state`、DOM 元素參照、localStorage 讀寫、`showToast()`、確認視窗 `showConfirm()`（取代 `window.confirm`）、JS 產生的 HTML 用的圖示 `ICONS`／`icon()` | 新增狀態欄位、DOM 參照或圖示 |
-| `js/shots.js` | 鏡頭卡片 HTML（桌機 `[Shot N]` 與拖曳把手在左欄、手機在頂端一列；右上操作按鈕圖示 `ACTION_ICON`，刪除為紅色）、`render()` / `refreshDerived()`、增刪複製移動、拖曳排序 | 卡片外觀與操作 |
+| `js/shots.js` | 鏡頭卡片 HTML（桌機 `[Shot N]`、開始時間 `At …` 與拖曳把手在固定寬度 `sm:w-28` 的左欄、垂直置中；手機在頂端一列；持續時間輸入框離開時用 `normalizeDuration()` 整理；右上操作按鈕圖示 `ACTION_ICON`，刪除為紅色）、`render()` / `refreshDerived()`（含 PREVIEW 的總長度）、增刪複製移動、拖曳排序 | 卡片外觀與操作 |
 | `js/tags.js` | 標籤列表、標籤管理視窗 | 標籤 UI |
 | `js/paste.js` | 「從剪貼簿貼上 Prompt」：讀剪貼簿（被擋時開貼上視窗）、有內容時先確認再取代卡片；卡片的貼上按鈕 `pasteIntoShot()`：用 `cleanShotText()` 整理換行與空白後取代該鏡頭描述，已有文字時先確認（被擋時聚焦文字框請使用者 Ctrl+V） | 貼上／匯入流程 |
 | `js/app.js` | 語言切換、複製、全域控制、啟動流程 | 頂部按鈕、全域設定 |
@@ -74,7 +74,9 @@ non_diegetic_music: <背景音樂，預設 N/A>
 
 - 時間戳記 `MM:SS.mmm`；鏡頭之間一個半形空格；「自動格式優化」開啟時描述結尾補 `.`。
 - **描述空白的鏡頭不輸出**，其餘依序重新編號；卡片標籤顯示輸出編號，空白卡片顯示 `[Shot –]`。
-- **時間戳記檢查**（`analyzeShots()`）：每張卡片檢查格式；只在「會輸出的」相鄰鏡頭間檢查順序，後者必須**大於**前者（相同也算錯）。第一個輸出的鏡頭（`[Shot 1]`）格式正確但不是 `00:00.000` 時，回傳 `warning: { type: 'firstNotZero' }`，卡片顯示琥珀色提醒，**不算錯誤**（不計入上方錯誤摘要）。
+- **鏡頭存的是持續時間**（`shot.duration`，秒數字串如 `"1.5"`），`At` 時間由 `analyzeShots()` 算出：第一個輸出的鏡頭從 `00:00.000` 開始，之後每個鏡頭的開始時間是前面「會輸出的」鏡頭持續時間加總。空白鏡頭不計入時間軸（卡片顯示 `At –`）。PREVIEW 顯示總長度 `totalDuration()`（只加總會輸出的鏡頭）。
+- **持續時間檢查**（`analyzeShots()`）：每張卡片都檢查，必須是大於 0 的秒數（最多 3 位小數，接受 `1,5`、`1.5s`）；錯誤的持續時間在時間軸上算 0。微調按鈕最小到 0.1 秒。
+- **貼上 Prompt**（`parsePrompt(text, lastDurationSec)`）：持續時間取相鄰 `At` 的差；最後一個鏡頭用「新增鏡頭預設持續時間」；差值 ≤ 0 或時間讀不懂時留下錯誤值讓卡片顯示錯誤。
 
 ## 資料保存
 

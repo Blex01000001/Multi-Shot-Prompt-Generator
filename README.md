@@ -28,26 +28,30 @@ non_diegetic_music: N/A
 
 - Timestamps use `MM:SS.mmm`.
 - Shots with an empty description are left out, and the remaining shots are renumbered.
+- Each `At` time is calculated from the durations you enter: the first shot starts at `00:00.000`,
+  and each later shot starts when the previous one ends.
 - `overall_soundscape` and `non_diegetic_music` default to `N/A`.
 - Write prompt text in English. Only the interface is translated.
 
 ## How to use
 
 1. Write what happens in each shot (motion, camera work, facial expression, and so on).
-2. Adjust timestamps with the `-500ms` / `-100ms` / `+100ms` / `+500ms` buttons or by typing.
-   New shots start one time step (default 1 s) after the last shot.
+2. Set how long each shot lasts (in seconds) by typing or with the `-500ms` / `-100ms` / `+100ms` / `+500ms` buttons.
+   Each card shows its start time (`At 00:00.000`), and the preview shows the total duration.
+   New shots get the default duration (1 s unless you change it).
 3. Optionally fill in the ambient sound and background music.
 4. Click **Copy Prompt** and paste the result into MiniMax H3, for example a ComfyUI MiniMax H3 workflow.
 
 ## Features
 
 - **Shot editing**: add, duplicate, delete, move up and down, or drag to reorder
-  (dragging keeps the timestamps in place, so only the shot contents change order).
+  (each shot keeps its duration, and the start times are recalculated).
 - **Paste prompt from clipboard**: turn an existing MiniMax H3 prompt back into shot cards
-  (asks first if the cards already have content; falls back to a paste box if the browser blocks the clipboard).
+  (durations come from the gaps between the `At` times, and the last shot gets the default duration;
+  asks first if the cards already have content; falls back to a paste box if the browser blocks the clipboard).
 - **Paste into a shot**: the clipboard button on each card pastes plain text into that shot's description,
   joining line breaks and extra spaces into single spaces (asks first if the shot already has text).
-- **Timestamp check**: highlights malformed timestamps and shots that are not later than the previous output shot.
+- **Duration check**: highlights durations that are not a number of seconds greater than 0.
 - **Auto formatting**: optionally adds a period to the end of each shot.
 - **Prompt tags**: search and click common phrases to insert them into the current shot.
   Add, edit, or delete your own tags, and import or export them as JSON.
