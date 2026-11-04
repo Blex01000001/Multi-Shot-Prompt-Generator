@@ -2,6 +2,8 @@
 
 **MiniMax H3 多鏡頭圖生影片提示詞產生器**：純前端靜態網頁，把多個鏡頭（Shot）的時間戳記與描述組合成 MiniMax H3 圖生影片模型使用的結構化 Prompt。無後端、**無建置流程**，直接開 `index.html`（含 `file://`）或部署到 GitHub Pages 即可使用。
 
+**開始新工作前先讀 `docs/TODO.md`**（待辦、已知問題、想法）。
+
 ## 檔案地圖（先看這裡決定要讀哪個檔案）
 
 | 檔案 | 負責 | 常見修改 |
@@ -20,6 +22,7 @@
 | `tests/e2e/app.test.js` | Playwright 瀏覽器測試 | 新增 UI 功能時補測試 |
 | `tests/e2e/screenshots.js` | 主要畫面截圖 | 新增畫面狀態時加一筆 |
 | `.claude/hooks/session-start.sh` | 雲端 session 啟動時自動 `npm install`（沒變就略過） | 新增測試用套件時通常不用改 |
+| `docs/TODO.md` | 目前的待辦、已知問題／限制、想法（只記現況，不記歷史） | 每次 commit 時同步更新（見「TODO 維護規則」） |
 | `README.md`、`docs/screenshot.png` | 給使用者看的英文介紹、工具連結、截圖 | 功能或輸出格式改變時同步更新；截圖用 `npm run screenshots -- readme` 重產 |
 
 每個 `js/*.js` 開頭都有註解說明職責；函式細節以程式碼與註解為準，不在此重複。
@@ -82,6 +85,13 @@ non_diegetic_music: <背景音樂，預設 N/A>
 
 - `localStorage`：`msp-lang`（語言）、`msp-tags`（標籤陣列）。讀寫都包 `try/catch`，不能用時退回預設值。鏡頭內容目前不保存。
 - 標籤匯出格式：`{ "type": "minimax-h3-prompt-tags", "version": 1, "exportedAt": "…", "tags": [{ "text", "note", "notes"? }] }`；匯入也接受純陣列，採合併、重複（不分大小寫）略過。
+
+## TODO 維護規則（`docs/TODO.md`）
+
+- 每次 commit 時一併更新：做完的項目**刪掉**、新發現的問題或想法**加進去**、已不適用的（例如被新設計取代）刪掉或改寫。
+- 只記目前狀態，不寫完成紀錄或歷史（看 `git log`）；每項一行為主，保持精簡。
+- 待辦標【直接做】／【先討論】／【使用者】；使用者說「做待辦 N」時以這份檔案的編號為準，編號可在整理時重排。
+- 給使用者的三段回報（見下一節）內容要和 `docs/TODO.md` 一致。
 
 ## 每次 commit 後的回報規則
 
