@@ -66,7 +66,7 @@ function render() {
   state.shots.forEach((shot, index) => {
     const card = document.createElement('div');
     card.dataset.index = index;
-    card.className = `shot-card glass-panel rounded-2xl px-5 pt-5 pb-3 border transition-all duration-200 ${
+    card.className = `shot-card glass-panel rounded-2xl px-4 pt-4 pb-3 border transition-all duration-200 ${
       state.activeShotIndex === index
         ? 'border-indigo-500/80 bg-slate-900/90 shadow-md shadow-indigo-500/10'
         : 'border-slate-800 hover:border-slate-700'
@@ -74,7 +74,7 @@ function render() {
 
     card.innerHTML = `
       <div class="pb-3.5 mb-3.5 border-b border-slate-800/80">
-        <div class="shot-header flex flex-wrap items-start justify-between gap-x-3 gap-y-2">
+        <div class="shot-header flex flex-wrap items-start justify-between gap-x-2 sm:gap-x-3 gap-y-2">
           <!-- Top left: [Shot N] label with its start time underneath -->
           <div class="shot-title flex flex-col items-start gap-1 shrink-0">
             <span class="${LABEL_BASE}"></span>
@@ -118,7 +118,7 @@ function render() {
                 ${icon('trash', ACTION_ICON)}
               </button>
             ` : ''}
-            <button type="button" class="drag-handle ml-1 p-1.5 lg:p-1 text-slate-500 hover:text-indigo-300 cursor-grab active:cursor-grabbing rounded-lg transition-colors" title="${escapeHtml(t('dragHandle'))}" aria-label="${escapeHtml(t('dragHandle'))}">
+            <button type="button" class="drag-handle sm:ml-1 p-1.5 lg:p-1 text-slate-500 hover:text-indigo-300 cursor-grab active:cursor-grabbing rounded-lg transition-colors" title="${escapeHtml(t('dragHandle'))}" aria-label="${escapeHtml(t('dragHandle'))}">
               ${icon('drag', ACTION_ICON)}
             </button>
           </div>
