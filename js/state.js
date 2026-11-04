@@ -49,7 +49,6 @@ const shotsListEl = $('shots-list');
 const outputPreviewEl = $('output-preview');
 const shotCountBadgeEl = $('shot-count-badge');
 const exportedCountEl = $('exported-count');
-const charCountEl = $('char-count');
 const totalDurationEl = $('total-duration');
 const tsWarningEl = $('ts-warning');
 const tsWarningTextEl = $('ts-warning-text');

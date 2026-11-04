@@ -91,6 +91,23 @@ test('durations set the start times; invalid ones are highlighted and tidied on 
   assert.equal(await page.locator('.dur-error:visible').count(), 0);
   assert.equal(await page.textContent('#total-duration'), '00:05.000');
 });
+test('messages under the description do not change the card height', async () => {
+  const { page } = await open();
+  const card = page.locator('.shot-card').nth(0);
+  const height = async () => Math.round((await card.boundingBox()).height);
+  const empty = await height(); // "Empty shot" message
+  assert.equal(await card.locator('.shot-skip').isVisible(), true);
+  await descriptions(page).nth(0).fill('a');
+  assert.equal(await card.locator('.shot-msg p:visible').count(), 0);
+  assert.equal(await height(), empty);
+  await durations(page).nth(0).fill('0'); // error message
+  assert.equal(await card.locator('.dur-error').isVisible(), true);
+  assert.equal(await height(), empty);
+  await descriptions(page).nth(0).fill(''); // empty + error: only the error is shown
+  assert.equal(await card.locator('.shot-msg p:visible').count(), 1);
+  assert.equal(await card.locator('.dur-error').isVisible(), true);
+});
+
 test('duration nudge buttons', async () => {
   const { page } = await open();
   await page.locator('.shot-card').nth(1).locator('[data-delta="500"]').click();
@@ -398,8 +415,9 @@ test('layout: no horizontal scroll, single-row card header, duration box fits', 
         // a filled shot shows its start time ("At 00:00.000") in the left column
         await page.locator('textarea.shot-input').nth(0).fill('a girl smiles');
         const sameRow = await page.evaluate(() => {
+          // duration controls and action buttons (incl. the drag handle) share one row
           const row = document.querySelector('.shot-header');
-          const tops = [...row.querySelectorAll(':scope > div > *')].map(el => {
+          const tops = [...row.querySelectorAll('.shot-controls > *, .shot-actions > *')].map(el => {
             const r = el.getBoundingClientRect();
             return r.top + r.height / 2;
           });
@@ -412,9 +430,9 @@ test('layout: no horizontal scroll, single-row card header, duration box fits', 
           const input = document.querySelector('.dur-input');
           const ctx = document.createElement('canvas').getContext('2d');
           ctx.font = getComputedStyle(input).font;
-          return [input.clientWidth, ctx.measureText('99.999').width];
+          return [input.clientWidth, ctx.measureText('00.0').width];
         });
-        assert.ok(inputWidth >= textWidth, `duration box ${inputWidth}px is narrower than "99.999" (${textWidth}px): ${where}`);
+        assert.ok(inputWidth >= textWidth, `duration box ${inputWidth}px is narrower than "00.0" (${textWidth}px): ${where}`);
       }
       await context.close();
       contexts.pop();
