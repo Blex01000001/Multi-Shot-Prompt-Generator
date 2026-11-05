@@ -123,6 +123,20 @@
               </label>
             </div>
           </div>
+
+          <!-- Storyboard file: export / import everything on the page -->
+          <div class="sm:col-span-2 flex flex-wrap items-center gap-2.5">
+            <span data-i18n="storyboardLabel" class="text-xs sm:text-sm font-semibold text-slate-300 mr-1">Storyboard (auto-saved in this browser)</span>
+            <button id="storyboard-export-btn" type="button" class="px-3.5 py-2 text-xs sm:text-sm font-semibold text-slate-200 bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/60 rounded-xl transition-all flex items-center gap-1.5">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V4"></path></svg>
+              <span data-i18n="exportJson">Export JSON</span>
+            </button>
+            <button id="storyboard-import-btn" type="button" class="px-3.5 py-2 text-xs sm:text-sm font-semibold text-slate-200 bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/60 rounded-xl transition-all flex items-center gap-1.5">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M17 8l-5-5m0 0L7 8m5-5v12"></path></svg>
+              <span data-i18n="importJson">Import JSON</span>
+            </button>
+            <input id="storyboard-import-file" type="file" accept="application/json,.json" class="hidden">
+          </div>
         </div>
       </div>
 

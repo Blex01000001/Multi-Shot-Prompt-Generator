@@ -22,13 +22,54 @@ function saveTags() {
   } catch (e) { /* ignore */ }
 }
 
+const STORYBOARD_STORAGE_KEY = 'msp-shots';
+
 let nextShotId = 100;
+
+// Give plain { duration, description } shots (from storage / a file) card ids.
+function withShotIds(shots) {
+  return shots.map(shot => ({ id: nextShotId++, ...shot }));
+}
+
+function loadStoryboard() {
+  try {
+    const raw = localStorage.getItem(STORYBOARD_STORAGE_KEY);
+    if (raw !== null) return parseStoryboard(JSON.parse(raw));
+  } catch (e) { /* storage unavailable or corrupted: start from the sample */ }
+  return null;
+}
+
+function saveStoryboard() {
+  try {
+    localStorage.setItem(STORYBOARD_STORAGE_KEY, JSON.stringify(buildStoryboardExport(state)));
+  } catch (e) { /* ignore */ }
+}
+
+// Download `data` as a pretty-printed JSON file.
+function downloadJson(data, filename) {
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+// YYYYMMDD, for export file names.
+function dateStamp() {
+  return new Date().toISOString().slice(0, 10).replace(/-/g, '');
+}
+
+const savedStoryboard = loadStoryboard();
 
 const state = {
   tags: loadTags(),
-  shots: createInitialShots(),
-  overallSoundscape: DEFAULT_AUDIO,
-  nonDiegeticMusic: DEFAULT_AUDIO,
+  shots: savedStoryboard ? withShotIds(savedStoryboard.shots) : createInitialShots(),
+  overallSoundscape: savedStoryboard ? savedStoryboard.overallSoundscape : DEFAULT_AUDIO,
+  nonDiegeticMusic: savedStoryboard ? savedStoryboard.nonDiegeticMusic : DEFAULT_AUDIO,
   timeStepSec: 1,
   autoPeriod: true,
   activeShotIndex: 0,
@@ -70,6 +111,9 @@ const autoPeriodCheck = $('auto-period-check');
 const copyBtn = $('copy-btn');
 const copyText = $('copy-text');
 const resetBtn = $('reset-btn');
+const storyboardExportBtn = $('storyboard-export-btn');
+const storyboardImportBtn = $('storyboard-import-btn');
+const storyboardImportFile = $('storyboard-import-file');
 const langBtn = $('lang-btn');
 const langMenu = $('lang-menu');
 

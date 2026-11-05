@@ -51,7 +51,7 @@ async function importPromptText(text) {
     const ok = await showConfirm({ title: t('confirmTitle'), message: t('confirmReplace'), ok: t('replace') });
     if (!ok) return 'cancelled';
   }
-  state.shots = result.shots.map(shot => ({ id: nextShotId++, ...shot }));
+  state.shots = withShotIds(result.shots);
   state.overallSoundscape = result.overallSoundscape;
   state.nonDiegeticMusic = result.nonDiegeticMusic;
   state.activeShotIndex = 0;

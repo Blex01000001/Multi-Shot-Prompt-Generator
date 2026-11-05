@@ -54,12 +54,13 @@ non_diegetic_music: N/A
 - **Duration check**: highlights durations that are not a number of seconds greater than 0.
 - **Auto formatting**: optionally adds a period to the end of each shot.
 - **Prompt tags**: search and click common phrases to insert them into the current shot.
-  Add, edit, or delete your own tags, and import or export them as JSON.
+  Add, edit, delete, drag to reorder, and import or export your own tags as JSON.
+- **Storyboard file**: export or import the whole storyboard (shots, soundscape, music) as JSON.
 - **Languages**: English, 繁體中文, and 日本語 (globe icon, top right).
 - **Desktop and mobile** layouts.
 
-Your tags and language choice are saved in the browser (`localStorage`).
-Shot contents are **not saved yet**, so reloading the page clears them.
+Your tags, language choice, and storyboard (shots, soundscape, music) are saved
+automatically in the browser (`localStorage`), so reloading the page keeps them.
 
 ## Run it locally
 

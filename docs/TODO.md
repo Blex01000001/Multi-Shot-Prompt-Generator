@@ -8,14 +8,13 @@
 ## 待辦
 
 1. 【使用者】新增 `.claude/settings.json`：註冊 SessionStart hook（`$CLAUDE_PROJECT_DIR/.claude/hooks/session-start.sh`，腳本已在 repo，但尚未註冊所以不會執行），並加權限白名單（`npm test`、`npm run test:*`、`npm run screenshots`、`git status`、`git log`、`git diff`、`git show`）。Claude 寫入此檔會被自動模式擋下，不要繞過。
-2. 【直接做】保存分鏡內容：鏡頭（`duration`、`description`）、音效、音樂存到 `localStorage` 的 `msp-shots`（讀寫包 try/catch），並提供整份分鏡 JSON 匯出／匯入。可沿用 `createInitialShots`、`DEFAULT_AUDIO`、`showConfirm`，參考 `buildTagExport`／`mergeImportedTags`；建議順便把 `state.activeShotIndex` 改成記錄鏡頭 `id`。
-7. 【直接做】（可選）手機上英文標題換成三行：可縮短手機版標題或調整字級；不能動到桌機的標題、副標與圖示。
-8. 【先討論】Tailwind Play CDN 的 console 警告與載入時短暫無樣式：根治要改用預先產生的 CSS，等於引入建置步驟。
-9. 【使用者】GitHub Pages：Settings → Pages 選 `main` / `(root)`，網址 `https://blex01000001.github.io/Multi-Shot-Prompt-Generator/`；建議在 repo About 的 ⚙️ 勾選 Use your GitHub Pages website。目前不確定是否已開啟。
+2. 【直接做】（可選）手機上英文標題換成三行：可縮短手機版標題或調整字級；不能動到桌機的標題、副標與圖示。
+3. 【先討論】Tailwind Play CDN 的 console 警告與載入時短暫無樣式：根治要改用預先產生的 CSS，等於引入建置步驟。
+4. 【使用者】GitHub Pages：Settings → Pages 選 `main` / `(root)`，網址 `https://blex01000001.github.io/Multi-Shot-Prompt-Generator/`；建議在 repo About 的 ⚙️ 勾選 Use your GitHub Pages website。目前不確定是否已開啟。
 
 ## 已知問題／限制
 
-- 鏡頭、音效、音樂的內容都不保存，重新整理就清空（見待辦 2）。
+- 「預設持續時間」與「自動格式優化」不會保存，重新整理後回到預設。
 - 手機上鏡頭卡片的持續時間框和微調按鈕分成兩列（外框讓寬度少了幾 px），卡片較高。
 - 桌機卡片右上已有 6 個按鈕（上、下、貼上、複製、刪除、拖曳），標題列幾乎沒有空間再加按鈕；要加的話考慮「更多」選單。
 - 描述框下方固定保留一行給提示訊息，沒有訊息的卡片也會多約 20px；訊息太長會截斷成「…」（滑鼠移上去看完整文字）。
@@ -33,3 +32,6 @@
 - 在文字框按 Ctrl+V 時也套用 `cleanShotText()` 整理（或做成設定）。
 - 卡片貼上的內容若其實是完整 Prompt（含 `[Shot N] At`），提示改用上方的「從剪貼簿貼上 Prompt」。
 - 手機上把持續時間與微調按鈕排回同一列（例如縮小微調按鈕或外框內距）。
+- 保存「預設持續時間」與「自動格式優化」（併入 `msp-shots` 或另存設定）。
+- `state.activeShotIndex` 改成記錄鏡頭 `id`（目前每次載入都會重發 id，用索引仍可運作）。
+- 分鏡存多份（命名專案）或 undo／redo。

@@ -113,6 +113,31 @@ test('defaultTags are valid and unique', () => {
   assert.equal(new Set(tags.map(t => t.id)).size, tags.length);
 });
 
+test('buildStoryboardExport / parseStoryboard round-trip and tolerate bad input', () => {
+  const state = {
+    shots: [{ id: 5, duration: '1.5', description: 'a girl smiles' }, { id: 6, duration: '2.0', description: '' }],
+    overallSoundscape: 'wind',
+    nonDiegeticMusic: 'N/A',
+  };
+  const out = core.buildStoryboardExport(state, new Date('2026-01-02T03:04:05Z'));
+  assert.equal(out.type, 'minimax-h3-prompt-storyboard');
+  assert.equal(out.exportedAt, '2026-01-02T03:04:05.000Z');
+  assert.deepEqual(out.shots, [{ duration: '1.5', description: 'a girl smiles' }, { duration: '2.0', description: '' }]);
+  assert.deepEqual(core.parseStoryboard(JSON.parse(JSON.stringify(out))), {
+    shots: out.shots, overallSoundscape: 'wind', nonDiegeticMusic: 'N/A',
+  });
+
+  // missing / odd values: default duration, numbers become text, audio is one line
+  const loose = core.parseStoryboard({ shots: [{ description: 'x' }, { duration: 2, description: 'y' }, null, { duration: 'abc', description: 5 }], overallSoundscape: 'a\n b', nonDiegeticMusic: '  ' });
+  assert.deepEqual(loose.shots, [{ duration: '1.0', description: 'x' }, { duration: '2', description: 'y' }, { duration: 'abc', description: '5' }]);
+  assert.equal(loose.overallSoundscape, 'a b');
+  assert.equal(loose.nonDiegeticMusic, 'N/A');
+
+  for (const bad of [null, 'x', 5, {}, { shots: 'x' }, { shots: [] }, { shots: [null] }]) {
+    assert.throws(() => core.parseStoryboard(bad), /No shot list/);
+  }
+});
+
 test('moveTag moves one tag and ignores bad indexes', () => {
   const tags = ['a', 'b', 'c'].map(text => core.normalizeTag({ text }));
   const texts = list => list.map(x => x.text).join('');

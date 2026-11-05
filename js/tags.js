@@ -213,16 +213,7 @@ function handleTagEditKeydown(e) {
 
 // Download tags as a JSON backup file.
 function exportTags() {
-  const blob = new Blob([JSON.stringify(buildTagExport(state.tags), null, 2)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  const stamp = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-  a.href = url;
-  a.download = `minimax-h3-prompt-tags-${stamp}.json`;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  downloadJson(buildTagExport(state.tags), `minimax-h3-prompt-tags-${dateStamp()}.json`);
   showToast(t('toastExported'));
 }
 

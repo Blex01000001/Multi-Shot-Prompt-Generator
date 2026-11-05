@@ -358,6 +358,40 @@ function isDuplicateTag(tags, text, ignoreId = null) {
   return tags.some(tag => tag.id !== ignoreId && tagKey(tag.text) === key);
 }
 
+// -----------------------------------------------------------------------------
+// Storyboard save / load (localStorage and JSON file share one format)
+// -----------------------------------------------------------------------------
+const STORYBOARD_EXPORT_TYPE = 'minimax-h3-prompt-storyboard';
+
+// Plain-data snapshot of the shots, soundscape and music (ids are not saved).
+function buildStoryboardExport(state, now = new Date()) {
+  return {
+    type: STORYBOARD_EXPORT_TYPE,
+    version: 1,
+    exportedAt: now.toISOString(),
+    shots: state.shots.map(({ duration, description }) => ({ duration, description })),
+    overallSoundscape: state.overallSoundscape,
+    nonDiegeticMusic: state.nonDiegeticMusic,
+  };
+}
+
+// Read a saved storyboard. Returns { shots: [{ duration, description }],
+// overallSoundscape, nonDiegeticMusic } (callers add the shot ids); throws if
+// `data` holds no shot list. Missing durations become "1.0", audio fields are
+// one line and fall back to N/A; other bad values are kept so the card shows
+// its error instead of silently changing them.
+function parseStoryboard(data) {
+  const list = data && typeof data === 'object' && Array.isArray(data.shots) ? data.shots : null;
+  if (!list) throw new Error('No shot list found');
+  const text = (v) => (typeof v === 'string' ? v : typeof v === 'number' ? String(v) : '');
+  const shots = list
+    .filter(s => s && typeof s === 'object')
+    .map(s => ({ duration: text(s.duration) || '1.0', description: text(s.description) }));
+  if (shots.length === 0) throw new Error('No shot list found');
+  const audio = (v) => collapseSpaces(text(v)) || DEFAULT_AUDIO;
+  return { shots, overallSoundscape: audio(data.overallSoundscape), nonDiegeticMusic: audio(data.nonDiegeticMusic) };
+}
+
 // Return a copy of `tags` with the tag at index `from` moved to index `to`.
 // Out-of-range or equal indexes return an unchanged copy.
 function moveTag(tags, from, to) {
@@ -436,6 +470,9 @@ if (typeof module === 'object' && module.exports) {
     tagKey,
     isDuplicateTag,
     moveTag,
+    STORYBOARD_EXPORT_TYPE,
+    buildStoryboardExport,
+    parseStoryboard,
     mergeImportedTags,
     tagTooltip,
     tagMatches,

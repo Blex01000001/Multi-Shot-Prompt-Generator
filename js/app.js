@@ -141,10 +141,45 @@ function resetSample() {
   showToast(t('toastReset'));
 }
 
+// Download the whole storyboard (shots, soundscape, music) as a JSON file.
+function exportStoryboard() {
+  downloadJson(buildStoryboardExport(state), `minimax-h3-storyboard-${dateStamp()}.json`);
+  showToast(t('toastStoryboardExported'));
+}
+
+// Replace the storyboard with the chosen JSON file (asks first if there is content).
+async function importStoryboardFromFile() {
+  const file = storyboardImportFile.files && storyboardImportFile.files[0];
+  storyboardImportFile.value = '';
+  if (!file) return;
+  let result;
+  try {
+    result = parseStoryboard(JSON.parse(await file.text()));
+  } catch (err) {
+    console.warn('Storyboard import failed', err);
+    showToast(t('toastStoryboardImportFail'));
+    return;
+  }
+  if (hasShotContent(state)) {
+    const ok = await showConfirm({ title: t('confirmTitle'), message: t('confirmReplaceStoryboard'), ok: t('replace') });
+    if (!ok) return;
+  }
+  state.shots = withShotIds(result.shots);
+  state.overallSoundscape = result.overallSoundscape;
+  state.nonDiegeticMusic = result.nonDiegeticMusic;
+  state.activeShotIndex = 0;
+  syncAudioInputs();
+  render();
+  showToast(t('toastStoryboardImported', { n: result.shots.length }));
+}
+
 function initGlobalControls() {
   addShotBtn.addEventListener('click', addShot);
   addShotBottomBtn.addEventListener('click', addShot);
   resetBtn.addEventListener('click', resetSample);
+  storyboardExportBtn.addEventListener('click', exportStoryboard);
+  storyboardImportBtn.addEventListener('click', () => storyboardImportFile.click());
+  storyboardImportFile.addEventListener('change', importStoryboardFromFile);
   copyBtn.addEventListener('click', copyPromptToClipboard);
 
   // Soundscape / music cards: one line of text each (line breaks become
