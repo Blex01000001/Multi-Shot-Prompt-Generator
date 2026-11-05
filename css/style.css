@@ -29,9 +29,11 @@
 .sortable-ghost {
   opacity: 0.35;
 }
-.sortable-chosen .drag-handle {
+.sortable-chosen .drag-handle,
+.sortable-chosen .tag-drag-handle {
   color: #a5b4fc;
 }
-.drag-handle {
+.drag-handle,
+.tag-drag-handle {
   touch-action: none;
 }

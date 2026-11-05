@@ -182,6 +182,32 @@ test('drag a card by its handle to reorder', async (t) => {
   assert.match(await firstLine(page), /^integrated_multimodal_description: \[Shot 1\] At 00:00\.000, CCC\. \[Shot 2\] At 00:03\.000, AAA\. \[Shot 3\] At 00:04\.000, BBB\.$/);
 });
 
+test('tag manager: drag a tag by its handle to reorder (saved, no handles while searching)', async (t) => {
+  const { page } = await open({ storage: { 'msp-tags': JSON.stringify([{ text: 'aaa' }, { text: 'bbb' }, { text: 'ccc' }]) } });
+  if (!(await page.evaluate(() => !!window.Sortable))) return t.skip('SortableJS not available (offline without node_modules)');
+  await page.click('#manage-tags-btn');
+  const order = () => page.locator('#tag-manage-list li .font-mono').allTextContents();
+  assert.deepEqual(await order(), ['aaa', 'bbb', 'ccc']);
+
+  const from = await page.locator('.tag-drag-handle').nth(2).boundingBox();
+  const to = await page.locator('.tag-drag-handle').nth(0).boundingBox();
+  await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
+  await page.mouse.down();
+  for (let i = 1; i <= 15; i++) {
+    await page.mouse.move(from.x + from.width / 2, from.y + (to.y - 10 - from.y) * i / 15);
+    await page.waitForTimeout(16);
+  }
+  await page.mouse.up();
+  await page.waitForTimeout(300);
+  assert.deepEqual(await order(), ['ccc', 'aaa', 'bbb']);
+  assert.deepEqual(await page.locator('#chips-list .prompt-chip').allTextContents(), ['ccc', 'aaa', 'bbb']);
+  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('msp-tags')).map(x => x.text));
+  assert.deepEqual(saved, ['ccc', 'aaa', 'bbb']);
+
+  await page.fill('#tag-manage-search', 'a');
+  assert.equal(await page.locator('.tag-drag-handle').count(), 0);
+});
+
 test('copy button writes the prompt to the clipboard', async () => {
   const { page } = await open({ permissions: ['clipboard-read', 'clipboard-write'] });
   await descriptions(page).nth(0).fill('hello');

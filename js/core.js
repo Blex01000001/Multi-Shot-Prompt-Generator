@@ -358,6 +358,17 @@ function isDuplicateTag(tags, text, ignoreId = null) {
   return tags.some(tag => tag.id !== ignoreId && tagKey(tag.text) === key);
 }
 
+// Return a copy of `tags` with the tag at index `from` moved to index `to`.
+// Out-of-range or equal indexes return an unchanged copy.
+function moveTag(tags, from, to) {
+  const result = tags.slice();
+  if (from !== to && from >= 0 && to >= 0 && from < tags.length && to < tags.length) {
+    const [moved] = result.splice(from, 1);
+    result.splice(to, 0, moved);
+  }
+  return result;
+}
+
 // Merge an imported JSON value (export object, or plain array of strings /
 // { text, note } objects) into `tags`. Duplicates (case-insensitive) are skipped.
 // Returns { tags, added, skipped }; throws if `data` holds no tag list.
@@ -424,6 +435,7 @@ if (typeof module === 'object' && module.exports) {
     buildTagExport,
     tagKey,
     isDuplicateTag,
+    moveTag,
     mergeImportedTags,
     tagTooltip,
     tagMatches,

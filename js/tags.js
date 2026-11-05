@@ -48,8 +48,10 @@ function renderTagManager() {
     return;
   }
 
+  // Reordering only makes sense on the full list, so no handles while searching.
+  const canDrag = !query.trim();
   tagManageList.innerHTML = visible.map(tag => (
-    tag.id === editingTagId ? tagEditRowHtml(tag) : tagRowHtml(tag)
+    tag.id === editingTagId ? tagEditRowHtml(tag) : tagRowHtml(tag, canDrag)
   )).join('');
 
   if (editingTagId) {
@@ -73,7 +75,7 @@ function tagEditRowHtml(tag) {
     </li>`;
 }
 
-function tagRowHtml(tag) {
+function tagRowHtml(tag, canDrag) {
   const tip = tagTooltip(tag, currentLang);
   const deleteBtn = tag.id === pendingDeleteId
     ? `<button type="button" data-action="confirm-delete" class="px-2.5 py-1 text-xs sm:text-sm font-bold text-white bg-rose-600 hover:bg-rose-500 rounded-lg transition-all">${escapeHtml(t('confirmDelete'))}</button>`
@@ -82,6 +84,7 @@ function tagRowHtml(tag) {
       </button>`;
   return `
     <li data-tag-id="${escapeHtml(tag.id)}" class="flex items-center gap-3 rounded-xl border border-slate-800 bg-slate-950/50 hover:border-slate-700 px-3 py-2 transition-all">
+      ${canDrag ? `<span class="tag-drag-handle p-1 -ml-1 text-slate-500 hover:text-indigo-300 cursor-grab active:cursor-grabbing rounded-lg transition-colors" title="${escapeHtml(t('dragHandle'))}" aria-label="${escapeHtml(t('dragHandle'))}">${icon('drag')}</span>` : ''}
       <div class="flex-1 min-w-0">
         <p class="font-mono text-xs sm:text-sm text-slate-100 break-words">${escapeHtml(tag.text)}</p>
         ${tip ? `<p class="text-xs sm:text-sm text-slate-400 break-words">${escapeHtml(tip)}</p>` : ''}
@@ -249,6 +252,24 @@ async function restoreDefaultTags() {
   showToast(t('toastRestored'));
 }
 
+// Drag-and-drop ordering in the manager (SortableJS). Falls back to the
+// existing order if the CDN script failed to load.
+function initTagSorting() {
+  if (!window.Sortable) return;
+  Sortable.create(tagManageList, {
+    handle: '.tag-drag-handle',
+    draggable: 'li[data-tag-id]',
+    animation: 180,
+    ghostClass: 'sortable-ghost',
+    onEnd: (evt) => {
+      const { oldIndex, newIndex } = evt;
+      if (oldIndex === newIndex || oldIndex == null || newIndex == null) return;
+      state.tags = moveTag(state.tags, oldIndex, newIndex);
+      refreshTags();
+    },
+  });
+}
+
 // Clicking a chip appends its text to the focused shot card.
 function handleChipClick(e) {
   const chip = e.target.closest('.prompt-chip');
@@ -272,6 +293,7 @@ function initTags() {
   tagAddText.addEventListener('input', () => tagAddError.classList.add('hidden'));
   tagManageList.addEventListener('click', handleTagListClick);
   tagManageList.addEventListener('keydown', handleTagEditKeydown);
+  initTagSorting();
   tagManageSearch.addEventListener('input', () => {
     pendingDeleteId = null;
     renderTagManager();

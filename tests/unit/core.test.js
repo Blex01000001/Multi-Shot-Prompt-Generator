@@ -113,6 +113,17 @@ test('defaultTags are valid and unique', () => {
   assert.equal(new Set(tags.map(t => t.id)).size, tags.length);
 });
 
+test('moveTag moves one tag and ignores bad indexes', () => {
+  const tags = ['a', 'b', 'c'].map(text => core.normalizeTag({ text }));
+  const texts = list => list.map(x => x.text).join('');
+  assert.equal(texts(core.moveTag(tags, 2, 0)), 'cab');
+  assert.equal(texts(core.moveTag(tags, 0, 1)), 'bac');
+  assert.equal(texts(core.moveTag(tags, 1, 1)), 'abc');
+  assert.equal(texts(core.moveTag(tags, -1, 1)), 'abc');
+  assert.equal(texts(core.moveTag(tags, 0, 3)), 'abc');
+  assert.equal(texts(tags), 'abc'); // input untouched
+});
+
 test('isDuplicateTag is case-insensitive and can ignore one id', () => {
   const tags = [core.normalizeTag('Camera Pan')];
   assert.ok(core.isDuplicateTag(tags, ' camera pan '));
