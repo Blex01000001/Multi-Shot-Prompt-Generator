@@ -395,8 +395,12 @@ test('tag manager: export, restore defaults, import (merge), bad file', async ()
   assert.equal(exported.type, 'minimax-h3-prompt-tags');
   assert.deepEqual(exported.tags.map(t => t.text), ['mine', 'camera slowly pushes in']);
 
-  page.once('dialog', dialog => dialog.accept());
   await page.click('#tag-restore-btn');
+  await page.locator('#confirm-modal').waitFor({ state: 'visible' });
+  await page.click('#confirm-cancel');
+  assert.equal(await page.textContent('#tag-manage-count'), '2 tags');
+  await page.click('#tag-restore-btn');
+  await page.click('#confirm-ok');
   assert.equal(await page.textContent('#tag-manage-count'), '10 tags');
 
   await page.setInputFiles('#tag-import-file', file);

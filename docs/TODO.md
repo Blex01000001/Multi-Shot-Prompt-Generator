@@ -10,7 +10,6 @@
 1. 【使用者】新增 `.claude/settings.json`：註冊 SessionStart hook（`$CLAUDE_PROJECT_DIR/.claude/hooks/session-start.sh`，腳本已在 repo，但尚未註冊所以不會執行），並加權限白名單（`npm test`、`npm run test:*`、`npm run screenshots`、`git status`、`git log`、`git diff`、`git show`）。Claude 寫入此檔會被自動模式擋下，不要繞過。
 2. 【直接做】保存分鏡內容：鏡頭（`duration`、`description`）、音效、音樂存到 `localStorage` 的 `msp-shots`（讀寫包 try/catch），並提供整份分鏡 JSON 匯出／匯入。可沿用 `createInitialShots`、`DEFAULT_AUDIO`、`showConfirm`，參考 `buildTagExport`／`mergeImportedTags`；建議順便把 `state.activeShotIndex` 改成記錄鏡頭 `id`。
 3. 【直接做】標籤拖曳排序：標籤管理視窗用 SortableJS（參考 `initShotSorting()`），排序後 `saveTags()`。
-4. 【直接做】「恢復預設標籤」改用 `showConfirm()`：`tags.js` 的 `restoreDefaultTags()` 還在用 `window.confirm`。
 5. 【直接做】GitHub Actions 自動測試：新增 `.github/workflows/test.yml`，PR 時跑 `npm ci && npx playwright install --with-deps chromium && npm run test:all`。Claude 可能沒權限推 workflow 檔，失敗時請使用者手動新增。
 6. 【直接做】手機版「從剪貼簿貼上 Prompt」和「Add Shot」排成上下兩行：可縮短手機版文字；不能動到桌機版面。
 7. 【直接做】（可選）手機上英文標題換成三行：可縮短手機版標題或調整字級；不能動到桌機的標題、副標與圖示。

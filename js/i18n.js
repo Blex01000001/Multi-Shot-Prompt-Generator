@@ -92,6 +92,8 @@ const MESSAGES = {
   toastExported: { en: 'Tags exported as JSON', 'zh-Hant': '已匯出標籤 JSON 檔', ja: 'タグを JSON でエクスポートしました' },
   toastImported: { en: 'Imported {added} tag(s), skipped {skipped} duplicate(s)', 'zh-Hant': '已匯入 {added} 個標籤，略過 {skipped} 個重複', ja: '{added} 件をインポート、重複 {skipped} 件をスキップしました' },
   toastImportFail: { en: 'Import failed: not a valid tag JSON file', 'zh-Hant': '匯入失敗：不是有效的標籤 JSON 檔', ja: 'インポート失敗：有効なタグ JSON ファイルではありません' },
+  confirmRestoreTitle: { en: 'Restore default tags?', 'zh-Hant': '要恢復預設標籤嗎？', ja: 'デフォルトのタグに戻しますか？' },
+  restore: { en: 'Restore', 'zh-Hant': '恢復', ja: '戻す' },
   confirmRestore: { en: 'Replace all your tags with the default set? Export a backup first if you want to keep them.', 'zh-Hant': '要用預設標籤取代目前所有標籤嗎？如果想保留，請先匯出備份。', ja: 'すべてのタグをデフォルトに置き換えますか？残したい場合は先にエクスポートしてください。' },
   toastRestored: { en: 'Default tags restored', 'zh-Hant': '已恢復預設標籤', ja: 'デフォルトのタグに戻しました' },
   dragHandle: { en: 'Drag to reorder', 'zh-Hant': '拖曳以調整順序', ja: 'ドラッグで並べ替え' },

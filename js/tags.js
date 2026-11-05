@@ -239,8 +239,9 @@ async function importTagsFromFile() {
   }
 }
 
-function restoreDefaultTags() {
-  if (!window.confirm(t('confirmRestore'))) return;
+async function restoreDefaultTags() {
+  const ok = await showConfirm({ title: t('confirmRestoreTitle'), message: t('confirmRestore'), ok: t('restore') });
+  if (!ok) return;
   state.tags = defaultTags();
   editingTagId = null;
   pendingDeleteId = null;
