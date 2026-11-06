@@ -8,9 +8,8 @@
 ## 待辦
 
 1. 【使用者】新增 `.claude/settings.json`：註冊 SessionStart hook（`$CLAUDE_PROJECT_DIR/.claude/hooks/session-start.sh`，腳本已在 repo，但尚未註冊所以不會執行），並加權限白名單（`npm test`、`npm run test:*`、`npm run screenshots`、`git status`、`git log`、`git diff`、`git show`）。Claude 寫入此檔會被自動模式擋下，不要繞過。
-2. 【直接做】（可選）手機上英文標題換成三行：可縮短手機版標題或調整字級；不能動到桌機的標題、副標與圖示。
-3. 【先討論】Tailwind Play CDN 的 console 警告與載入時短暫無樣式：根治要改用預先產生的 CSS，等於引入建置步驟。
-4. 【使用者】GitHub Pages：Settings → Pages 選 `main` / `(root)`，網址 `https://blex01000001.github.io/Multi-Shot-Prompt-Generator/`；建議在 repo About 的 ⚙️ 勾選 Use your GitHub Pages website。目前不確定是否已開啟。
+2. 【先討論】Tailwind Play CDN 的 console 警告與載入時短暫無樣式：根治要改用預先產生的 CSS，等於引入建置步驟。
+3. 【使用者】GitHub Pages：Settings → Pages 選 `main` / `(root)`，網址 `https://blex01000001.github.io/Multi-Shot-Prompt-Generator/`；建議在 repo About 的 ⚙️ 勾選 Use your GitHub Pages website。目前不確定是否已開啟。
 
 ## 已知問題／限制
 
