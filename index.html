@@ -30,7 +30,7 @@
           </svg>
         </div>
         <div class="min-w-0">
-          <h1 data-i18n="title" class="font-extrabold text-xl sm:text-2xl leading-tight tracking-tight bg-gradient-to-r from-white via-slate-200 to-indigo-200 bg-clip-text text-transparent">
+          <h1 data-i18n="title" class="font-extrabold text-base min-[420px]:text-xl sm:text-2xl leading-tight tracking-tight bg-gradient-to-r from-white via-slate-200 to-indigo-200 bg-clip-text text-transparent">
             MiniMax H3 Multi-Shot Prompt Generator
           </h1>
           <p data-i18n="subtitle" class="text-xs sm:text-sm text-slate-400 font-medium">Structured AI video prompts &amp; multi-shot storyboard tool</p>
@@ -92,13 +92,13 @@
               <span data-i18n="totalShots">Total shots</span>: <strong id="shot-count-badge" class="text-indigo-400 font-bold text-base sm:text-lg">2</strong>
               <span id="exported-count" class="text-slate-400 font-medium"></span>
             </span>
-            <button id="paste-prompt-btn" type="button" class="px-3 py-1.5 text-xs font-semibold text-purple-200 bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/40 hover:border-purple-400/70 active:scale-95 rounded-lg transition-all flex items-center gap-1.5">
+            <button id="paste-prompt-btn" type="button" class="w-full sm:w-auto justify-center px-3 py-1.5 text-xs font-semibold text-purple-200 bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/40 hover:border-purple-400/70 active:scale-95 rounded-lg transition-all flex items-center gap-1.5">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7v6m0 0l-3-3m3 3l3-3"></path>
               </svg>
               <span data-i18n="pasteBtn">Paste prompt from clipboard</span>
             </button>
-            <button id="add-shot-btn" class="px-4 py-2.5 text-xs sm:text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-500 active:scale-95 rounded-xl shadow-md shadow-indigo-600/30 transition-all flex items-center gap-2">
+            <button id="add-shot-btn" class="w-full sm:w-auto justify-center px-4 py-2.5 text-xs sm:text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-500 active:scale-95 rounded-xl shadow-md shadow-indigo-600/30 transition-all flex items-center gap-2">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
               </svg>
@@ -121,6 +121,34 @@
               <label for="auto-period-check" data-i18n="autoPeriodLabel" class="text-xs sm:text-sm text-slate-300 cursor-pointer select-none font-medium">
                 Append a period (.) to the end of each shot
               </label>
+            </div>
+          </div>
+
+          <!-- Storyboards: switch / new / rename / delete, JSON export / import -->
+          <div class="sm:col-span-2 border-t border-slate-800 pt-4">
+            <span data-i18n="storyboardLabel" class="block text-xs sm:text-sm font-semibold text-slate-300">Storyboards (auto-saved in this browser)</span>
+            <div class="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              <select id="project-select" data-i18n-aria="projectSelectLabel" data-i18n-title="projectSelectLabel" class="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-3.5 py-2 text-xs sm:text-sm font-medium text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"></select>
+              <input id="project-name-input" type="text" maxlength="60" autocomplete="off" data-i18n-aria="projectNameLabel" data-i18n-title="projectNameLabel" data-i18n-placeholder="projectNameLabel" class="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-3.5 py-2 text-xs sm:text-sm font-medium text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            </div>
+            <div class="mt-2.5 flex flex-wrap items-center gap-2.5">
+              <button id="project-new-btn" type="button" class="px-3.5 py-2 text-xs sm:text-sm font-semibold text-slate-200 bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/60 rounded-xl transition-all flex items-center gap-1.5">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                <span data-i18n="newProject">New</span>
+              </button>
+              <button id="project-delete-btn" type="button" class="px-3.5 py-2 text-xs sm:text-sm font-semibold text-slate-300 hover:text-rose-300 bg-slate-800/80 hover:bg-rose-950/40 border border-slate-700/60 hover:border-rose-500/40 rounded-xl transition-all flex items-center gap-1.5 disabled:opacity-40 disabled:pointer-events-none">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                <span data-i18n="deleteProject">Delete</span>
+              </button>
+              <button id="storyboard-export-btn" type="button" class="px-3.5 py-2 text-xs sm:text-sm font-semibold text-slate-200 bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/60 rounded-xl transition-all flex items-center gap-1.5">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V4"></path></svg>
+                <span data-i18n="exportJson">Export JSON</span>
+              </button>
+              <button id="storyboard-import-btn" type="button" class="px-3.5 py-2 text-xs sm:text-sm font-semibold text-slate-200 bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/60 rounded-xl transition-all flex items-center gap-1.5">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M17 8l-5-5m0 0L7 8m5-5v12"></path></svg>
+                <span data-i18n="importJson">Import JSON</span>
+              </button>
+              <input id="storyboard-import-file" type="file" accept="application/json,.json" class="hidden">
             </div>
           </div>
         </div>
@@ -369,6 +397,7 @@
   <script src="js/shots.js"></script>
   <script src="js/tags.js"></script>
   <script src="js/paste.js"></script>
+  <script src="js/projects.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

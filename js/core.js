@@ -358,6 +358,130 @@ function isDuplicateTag(tags, text, ignoreId = null) {
   return tags.some(tag => tag.id !== ignoreId && tagKey(tag.text) === key);
 }
 
+// -----------------------------------------------------------------------------
+// Storyboard save / load (localStorage and JSON file share one format)
+// -----------------------------------------------------------------------------
+const STORYBOARD_EXPORT_TYPE = 'minimax-h3-prompt-storyboard';
+
+// Longest storyboard name kept.
+const PROJECT_NAME_MAX = 60;
+
+// Plain-data snapshot of the shots, soundscape and music (ids are not saved).
+// `state.name` (optional) is written as the storyboard name.
+function buildStoryboardExport(state, now = new Date()) {
+  return {
+    type: STORYBOARD_EXPORT_TYPE,
+    version: 1,
+    exportedAt: now.toISOString(),
+    ...(state.name ? { name: state.name } : {}),
+    shots: state.shots.map(({ duration, description }) => ({ duration, description })),
+    overallSoundscape: state.overallSoundscape,
+    nonDiegeticMusic: state.nonDiegeticMusic,
+  };
+}
+
+// Read a saved storyboard. Returns { name, shots: [{ duration, description }],
+// overallSoundscape, nonDiegeticMusic } (name is '' when missing; callers add
+// the shot ids); throws if
+// `data` holds no shot list. Missing durations become "1.0", audio fields are
+// one line and fall back to N/A; other bad values are kept so the card shows
+// its error instead of silently changing them.
+function parseStoryboard(data) {
+  const list = data && typeof data === 'object' && Array.isArray(data.shots) ? data.shots : null;
+  if (!list) throw new Error('No shot list found');
+  const text = (v) => (typeof v === 'string' ? v : typeof v === 'number' ? String(v) : '');
+  const shots = list
+    .filter(s => s && typeof s === 'object')
+    .map(s => ({ duration: text(s.duration) || '1.0', description: text(s.description) }));
+  if (shots.length === 0) throw new Error('No shot list found');
+  const audio = (v) => collapseSpaces(text(v)) || DEFAULT_AUDIO;
+  return {
+    name: collapseSpaces(text(data.name)).slice(0, PROJECT_NAME_MAX),
+    shots,
+    overallSoundscape: audio(data.overallSoundscape),
+    nonDiegeticMusic: audio(data.nonDiegeticMusic),
+  };
+}
+
+// -----------------------------------------------------------------------------
+// Several storyboards ("projects"): { id, name, shots, overallSoundscape,
+// nonDiegeticMusic } with plain shots (no card ids). One is active; its live
+// content is kept in the app state and copied back when saving.
+// -----------------------------------------------------------------------------
+const PROJECTS_STORE_TYPE = 'minimax-h3-prompt-projects';
+
+// A new storyboard with the starting content (two blank one-second shots).
+function blankProject(id, name) {
+  return {
+    id,
+    name,
+    shots: createInitialShots().map(({ duration, description }) => ({ duration, description })),
+    overallSoundscape: DEFAULT_AUDIO,
+    nonDiegeticMusic: DEFAULT_AUDIO,
+  };
+}
+
+// "Storyboard N" with the smallest N (starting at the count + 1) not used yet.
+function defaultProjectName(projects) {
+  const used = new Set(projects.map(p => p.name));
+  let n = projects.length + 1;
+  while (used.has(`Storyboard ${n}`)) n += 1;
+  return `Storyboard ${n}`;
+}
+
+// Ids are "p1", "p2", ...; this returns one larger than every id in use.
+function nextProjectId(projects) {
+  const max = projects.reduce((m, p) => {
+    const found = /^p(\d+)$/.exec(p.id || '');
+    return found ? Math.max(m, parseInt(found[1], 10)) : m;
+  }, 0);
+  return `p${max + 1}`;
+}
+
+function buildProjectsStore(projects, activeId) {
+  return {
+    type: PROJECTS_STORE_TYPE,
+    version: 1,
+    activeId,
+    projects: projects.map(({ id, name, shots, overallSoundscape, nonDiegeticMusic }) => (
+      { id, name, shots, overallSoundscape, nonDiegeticMusic }
+    )),
+  };
+}
+
+// Read a saved projects store. Returns { projects, activeId }; unreadable
+// projects are dropped, bad / duplicate ids and missing names are replaced,
+// and an unknown activeId becomes the first project. Throws if none is left.
+function parseProjectsStore(data) {
+  const list = data && Array.isArray(data.projects) ? data.projects : null;
+  if (!list) throw new Error('No projects found');
+  const projects = [];
+  list.forEach(raw => {
+    let board;
+    try { board = parseStoryboard(raw); } catch (e) { return; }
+    const idOk = typeof raw.id === 'string' && /^p\d+$/.test(raw.id) && !projects.some(p => p.id === raw.id);
+    projects.push({ ...board, id: idOk ? raw.id : null });
+  });
+  if (projects.length === 0) throw new Error('No projects found');
+  projects.forEach(p => {
+    if (!p.id) p.id = nextProjectId(projects);
+    if (!p.name) p.name = defaultProjectName(projects.filter(q => q !== p && q.name));
+  });
+  const activeId = projects.some(p => p.id === data.activeId) ? data.activeId : projects[0].id;
+  return { projects, activeId };
+}
+
+// Return a copy of `tags` with the tag at index `from` moved to index `to`.
+// Out-of-range or equal indexes return an unchanged copy.
+function moveTag(tags, from, to) {
+  const result = tags.slice();
+  if (from !== to && from >= 0 && to >= 0 && from < tags.length && to < tags.length) {
+    const [moved] = result.splice(from, 1);
+    result.splice(to, 0, moved);
+  }
+  return result;
+}
+
 // Merge an imported JSON value (export object, or plain array of strings /
 // { text, note } objects) into `tags`. Duplicates (case-insensitive) are skipped.
 // Returns { tags, added, skipped }; throws if `data` holds no tag list.
@@ -424,6 +548,17 @@ if (typeof module === 'object' && module.exports) {
     buildTagExport,
     tagKey,
     isDuplicateTag,
+    moveTag,
+    STORYBOARD_EXPORT_TYPE,
+    buildStoryboardExport,
+    PROJECT_NAME_MAX,
+    PROJECTS_STORE_TYPE,
+    parseStoryboard,
+    blankProject,
+    defaultProjectName,
+    nextProjectId,
+    buildProjectsStore,
+    parseProjectsStore,
     mergeImportedTags,
     tagTooltip,
     tagMatches,

@@ -113,6 +113,93 @@ test('defaultTags are valid and unique', () => {
   assert.equal(new Set(tags.map(t => t.id)).size, tags.length);
 });
 
+test('buildStoryboardExport / parseStoryboard round-trip and tolerate bad input', () => {
+  const state = {
+    shots: [{ id: 5, duration: '1.5', description: 'a girl smiles' }, { id: 6, duration: '2.0', description: '' }],
+    overallSoundscape: 'wind',
+    nonDiegeticMusic: 'N/A',
+  };
+  const out = core.buildStoryboardExport(state, new Date('2026-01-02T03:04:05Z'));
+  assert.equal(out.type, 'minimax-h3-prompt-storyboard');
+  assert.equal(out.exportedAt, '2026-01-02T03:04:05.000Z');
+  assert.deepEqual(out.shots, [{ duration: '1.5', description: 'a girl smiles' }, { duration: '2.0', description: '' }]);
+  assert.deepEqual(core.parseStoryboard(JSON.parse(JSON.stringify(out))), {
+    name: '', shots: out.shots, overallSoundscape: 'wind', nonDiegeticMusic: 'N/A',
+  });
+  // the name is exported when set, and read back trimmed to one line
+  const named = core.buildStoryboardExport({ ...state, name: 'Intro scene' });
+  assert.equal(named.name, 'Intro scene');
+  assert.equal(core.parseStoryboard({ ...named, name: '  Intro \n scene ' }).name, 'Intro scene');
+
+  // missing / odd values: default duration, numbers become text, audio is one line
+  const loose = core.parseStoryboard({ shots: [{ description: 'x' }, { duration: 2, description: 'y' }, null, { duration: 'abc', description: 5 }], overallSoundscape: 'a\n b', nonDiegeticMusic: '  ' });
+  assert.deepEqual(loose.shots, [{ duration: '1.0', description: 'x' }, { duration: '2', description: 'y' }, { duration: 'abc', description: '5' }]);
+  assert.equal(loose.overallSoundscape, 'a b');
+  assert.equal(loose.nonDiegeticMusic, 'N/A');
+
+  for (const bad of [null, 'x', 5, {}, { shots: 'x' }, { shots: [] }, { shots: [null] }]) {
+    assert.throws(() => core.parseStoryboard(bad), /No shot list/);
+  }
+});
+
+test('project helpers: blank project, names, ids', () => {
+  const blank = core.blankProject('p1', 'Storyboard 1');
+  assert.equal(blank.shots.length, 2);
+  assert.deepEqual(blank.shots[0], { duration: '1.0', description: '' });
+  assert.equal(blank.overallSoundscape, 'N/A');
+  assert.ok(!('id' in blank.shots[0])); // plain shots, no card ids
+
+  assert.equal(core.defaultProjectName([]), 'Storyboard 1');
+  assert.equal(core.defaultProjectName([{ name: 'Storyboard 2' }, { name: 'x' }]), 'Storyboard 3');
+  assert.equal(core.defaultProjectName([{ name: 'Storyboard 3' }, { name: 'x' }, { name: 'y' }]), 'Storyboard 4');
+
+  assert.equal(core.nextProjectId([]), 'p1');
+  assert.equal(core.nextProjectId([{ id: 'p1' }, { id: 'p7' }, { id: 'weird' }]), 'p8');
+});
+
+test('buildProjectsStore / parseProjectsStore round-trip and repair bad data', () => {
+  const a = { ...core.blankProject('p1', 'One'), overallSoundscape: 'wind' };
+  const b = core.blankProject('p4', 'Two');
+  const store = core.buildProjectsStore([a, b], 'p4');
+  assert.equal(store.type, 'minimax-h3-prompt-projects');
+  const back = core.parseProjectsStore(JSON.parse(JSON.stringify(store)));
+  assert.equal(back.activeId, 'p4');
+  assert.deepEqual(back.projects.map(p => [p.id, p.name, p.overallSoundscape]), [['p1', 'One', 'wind'], ['p4', 'Two', 'N/A']]);
+
+  // bad / duplicate ids and missing names are replaced; unreadable entries and an unknown activeId are dropped
+  const messy = core.parseProjectsStore({
+    activeId: 'nope',
+    projects: [
+      { id: 'p2', shots: [{ duration: '1', description: 'a' }] },
+      { id: 'p2', name: 'Dup', shots: [{ duration: '1', description: 'b' }] },
+      { id: 5, name: 'Numeric id', shots: [{ duration: '1', description: 'c' }] },
+      { id: 'p9', name: 'Broken', shots: [] },
+      null,
+    ],
+  });
+  assert.equal(messy.projects.length, 3);
+  assert.equal(new Set(messy.projects.map(p => p.id)).size, 3);
+  assert.equal(messy.projects[0].id, 'p2');
+  assert.match(messy.projects[0].name, /^Storyboard \d+$/);
+  assert.equal(new Set(messy.projects.map(p => p.name)).size, 3);
+  assert.equal(messy.activeId, 'p2');
+
+  for (const bad of [null, {}, { projects: 'x' }, { projects: [] }, { projects: [{ shots: [] }] }]) {
+    assert.throws(() => core.parseProjectsStore(bad), /No projects/);
+  }
+});
+
+test('moveTag moves one tag and ignores bad indexes', () => {
+  const tags = ['a', 'b', 'c'].map(text => core.normalizeTag({ text }));
+  const texts = list => list.map(x => x.text).join('');
+  assert.equal(texts(core.moveTag(tags, 2, 0)), 'cab');
+  assert.equal(texts(core.moveTag(tags, 0, 1)), 'bac');
+  assert.equal(texts(core.moveTag(tags, 1, 1)), 'abc');
+  assert.equal(texts(core.moveTag(tags, -1, 1)), 'abc');
+  assert.equal(texts(core.moveTag(tags, 0, 3)), 'abc');
+  assert.equal(texts(tags), 'abc'); // input untouched
+});
+
 test('isDuplicateTag is case-insensitive and can ignore one id', () => {
   const tags = [core.normalizeTag('Camera Pan')];
   assert.ok(core.isDuplicateTag(tags, ' camera pan '));

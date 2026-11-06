@@ -185,6 +185,7 @@ initGlobalControls();
 initLanguageMenu();
 initTags();
 initPaste();
+initProjects();
 initConfirm();
 initShots();
 applyLanguage();

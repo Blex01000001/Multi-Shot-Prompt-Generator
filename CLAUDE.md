@@ -11,12 +11,13 @@
 | `index.html` | 靜態畫面結構（鏡頭卡片外有標題為 `integrated_multimodal_description` 的外框；下方 `overall_soundscape`／`non_diegetic_music` 兩張同風格卡片，`data-audio` 對應 `state` 欄位）、彈出視窗、`<script>` 載入順序 | 新增區塊／按鈕／輸入欄 |
 | `css/style.css` | Tailwind 以外的少量自訂樣式 | 捲軸、玻璃效果、拖曳狀態 |
 | `js/tailwind-config.js` | Tailwind CDN 設定（字體、色票） | 主題色、字體 |
-| `js/core.js` | **純邏輯**：時間戳記與持續時間（`formatDuration`／`parseDuration`／`normalizeDuration`／`shiftDuration`）、鏡頭增刪複製移動（回傳 `{ shots, active }`；持續時間跟著卡片走）、輸出格式 `buildPrompt()` 與反向解析 `parsePrompt()`、驗證與開始時間 `analyzeShots()`、總長度 `totalDuration()`、預設值、標籤資料處理、`DEFAULT_TAGS` | 輸出格式、驗證規則、鏡頭操作、標籤匯入匯出 |
+| `js/core.js` | **純邏輯**：時間戳記與持續時間（`formatDuration`／`parseDuration`／`normalizeDuration`／`shiftDuration`）、鏡頭增刪複製移動（回傳 `{ shots, active }`；持續時間跟著卡片走）、輸出格式 `buildPrompt()` 與反向解析 `parsePrompt()`、驗證與開始時間 `analyzeShots()`、總長度 `totalDuration()`、預設值、標籤資料處理、`DEFAULT_TAGS` | 輸出格式、驗證規則、鏡頭操作、標籤匯入匯出、分鏡儲存格式 `buildStoryboardExport()`／`parseStoryboard()`、多份分鏡 `blankProject()`／`buildProjectsStore()`／`parseProjectsStore()` |
 | `js/i18n.js` | 介面文字 `MESSAGES`（每個鍵三語並列）、`t()` | 新增或修改任何介面文字 |
-| `js/state.js` | `state`、DOM 元素參照、localStorage 讀寫、`showToast()`、確認視窗 `showConfirm()`（取代 `window.confirm`）、JS 產生的 HTML 用的圖示 `ICONS`／`icon()` | 新增狀態欄位、DOM 參照或圖示 |
+| `js/state.js` | `state`、DOM 元素參照、localStorage 讀寫（標籤 `loadTags`／`saveTags`、分鏡 `loadProjects`／`saveStoryboard`）、`downloadJson()`、`showToast()`、確認視窗 `showConfirm()`（取代 `window.confirm`）、JS 產生的 HTML 用的圖示 `ICONS`／`icon()` | 新增狀態欄位、DOM 參照或圖示 |
 | `js/shots.js` | 鏡頭卡片 HTML（左上 `[Shot N]` 與下方小字開始時間 `At …`；持續時間框寬 `w-[4ch]`，離開時用 `normalizeDuration()` 整理；右上操作按鈕 `ACTION_ICON`，刪除為紅色、最右是拖曳把手；手機上操作按鈕與 `[Shot N]` 同列、持續時間另起一列；描述框全寬，下方固定一行 `.shot-msg` 放紅字錯誤／黃字空白提醒，不影響卡片高度）、`render()` / `refreshDerived()`（含 PREVIEW 的總長度）、增刪複製移動、拖曳排序 | 卡片外觀與操作 |
 | `js/tags.js` | 標籤列表、標籤管理視窗 | 標籤 UI |
 | `js/paste.js` | 「從剪貼簿貼上 Prompt」：讀剪貼簿（被擋時開貼上視窗）、有內容時先確認再取代卡片；卡片的貼上按鈕 `pasteIntoShot()`／音效卡片 `pasteIntoAudio()`（共用 `pasteCleanText()`）：用 `cleanShotText()` 整理換行與空白後取代內容，已有文字時先確認（`N/A` 算空白；被擋時聚焦文字框請使用者 Ctrl+V） | 貼上／匯入流程 |
+| `js/projects.js` | 多份分鏡：切換／新增／改名／刪除（`renderProjectUi()`、`switchProject()`、`addProject()`）、單份分鏡 JSON 匯出匯入（匯入會新增一份分鏡） | 分鏡管理 UI |
 | `js/app.js` | 語言切換、複製、全域控制（音效卡片輸入時換行轉空格，維持一行）、啟動流程 | 頂部按鈕、全域設定 |
 | `tests/unit/*.test.js` | Node 單元測試（`core.js`、`i18n.js` 一致性） | 改 `core.js` 時同步補測試 |
 | `tests/e2e/app.test.js` | Playwright 瀏覽器測試 | 新增 UI 功能時補測試 |
@@ -83,7 +84,10 @@ non_diegetic_music: <背景音樂，預設 N/A>
 
 ## 資料保存
 
-- `localStorage`：`msp-lang`（語言）、`msp-tags`（標籤陣列）。讀寫都包 `try/catch`，不能用時退回預設值。鏡頭內容目前不保存。
+- `localStorage`：`msp-lang`（語言）、`msp-tags`（標籤陣列）、`msp-projects`（所有分鏡與目前開啟的那份）。舊版的 `msp-shots`（單份分鏡）會在載入時自動搬進第一份分鏡並移除。讀寫都包 `try/catch`，不能用時退回預設值。
+- `msp-projects` 格式：`{ "type": "minimax-h3-prompt-projects", "version": 1, "activeId", "projects": [{ "id": "p1", "name", "shots": [{ "duration", "description" }], "overallSoundscape", "nonDiegeticMusic" }] }`。`state.shots`／音效／音樂是目前這份的即時內容，存檔時（`saveStoryboard()` → `syncActiveProject()`）才寫回；至少保留一份，刪除要確認。
+- 分鏡在 `refreshDerived()` 結尾自動存檔（輸入與結構改變都會經過）；重新整理後還原，Reset 只清空目前這份。「預設持續時間」與「自動格式優化」目前不保存。
+- 單份分鏡匯出格式：`{ "type": "minimax-h3-prompt-storyboard", "version": 1, "exportedAt": "…", "name"?, "shots": [{ "duration", "description" }], "overallSoundscape", "nonDiegeticMusic" }`；匯入會新增一份分鏡並切過去（原本的不動）。
 - 標籤匯出格式：`{ "type": "minimax-h3-prompt-tags", "version": 1, "exportedAt": "…", "tags": [{ "text", "note", "notes"? }] }`；匯入也接受純陣列，採合併、重複（不分大小寫）略過。
 
 ## TODO 維護規則（`docs/TODO.md`）

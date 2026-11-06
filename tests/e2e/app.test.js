@@ -182,6 +182,154 @@ test('drag a card by its handle to reorder', async (t) => {
   assert.match(await firstLine(page), /^integrated_multimodal_description: \[Shot 1\] At 00:00\.000, CCC\. \[Shot 2\] At 00:03\.000, AAA\. \[Shot 3\] At 00:04\.000, BBB\.$/);
 });
 
+test('tag manager: drag a tag by its handle to reorder (saved, no handles while searching)', async (t) => {
+  const { page } = await open({ storage: { 'msp-tags': JSON.stringify([{ text: 'aaa' }, { text: 'bbb' }, { text: 'ccc' }]) } });
+  if (!(await page.evaluate(() => !!window.Sortable))) return t.skip('SortableJS not available (offline without node_modules)');
+  await page.click('#manage-tags-btn');
+  const order = () => page.locator('#tag-manage-list li .font-mono').allTextContents();
+  assert.deepEqual(await order(), ['aaa', 'bbb', 'ccc']);
+
+  const from = await page.locator('.tag-drag-handle').nth(2).boundingBox();
+  const to = await page.locator('.tag-drag-handle').nth(0).boundingBox();
+  await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
+  await page.mouse.down();
+  for (let i = 1; i <= 15; i++) {
+    await page.mouse.move(from.x + from.width / 2, from.y + (to.y - 10 - from.y) * i / 15);
+    await page.waitForTimeout(16);
+  }
+  await page.mouse.up();
+  await page.waitForTimeout(300);
+  assert.deepEqual(await order(), ['ccc', 'aaa', 'bbb']);
+  assert.deepEqual(await page.locator('#chips-list .prompt-chip').allTextContents(), ['ccc', 'aaa', 'bbb']);
+  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('msp-tags')).map(x => x.text));
+  assert.deepEqual(saved, ['ccc', 'aaa', 'bbb']);
+
+  await page.fill('#tag-manage-search', 'a');
+  assert.equal(await page.locator('.tag-drag-handle').count(), 0);
+});
+
+test('storyboard is saved to localStorage and restored after reload', async () => {
+  const { page } = await open();
+  await descriptions(page).nth(0).fill('a girl smiles');
+  await durations(page).nth(0).fill('1.5');
+  await page.fill('#soundscape-input', 'wind');
+  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('msp-projects')).projects[0]);
+  assert.deepEqual(saved.shots[0], { duration: '1.5', description: 'a girl smiles' });
+  assert.equal(saved.overallSoundscape, 'wind');
+
+  await page.click('#add-shot-btn'); // structure changes are saved too
+  await page.reload();
+  await page.waitForFunction(() => document.querySelectorAll('.shot-card').length > 0);
+  assert.equal(await descriptions(page).count(), 3);
+  assert.equal(await descriptions(page).nth(0).inputValue(), 'a girl smiles');
+  assert.equal(await durations(page).nth(0).inputValue(), '1.5');
+  assert.equal(await page.inputValue('#soundscape-input'), 'wind');
+  assert.match(await firstLine(page), /At 00:00\.000, a girl smiles\./);
+
+  await page.click('#reset-btn'); // reset clears the saved copy too
+  await page.reload();
+  await page.waitForFunction(() => document.querySelectorAll('.shot-card').length > 0);
+  assert.equal(await descriptions(page).count(), 2);
+  assert.equal(await descriptions(page).nth(0).inputValue(), '');
+});
+
+test('a corrupted saved storyboard falls back to the blank sample', async () => {
+  const { page } = await open({ storage: { 'msp-projects': '{oops' } });
+  assert.equal(await descriptions(page).count(), 2);
+});
+
+const projectNames = (page) => page.locator('#project-select option').allTextContents();
+
+test('storyboards: new, switch, rename and delete (with confirm); each keeps its own content', async () => {
+  const { page } = await open();
+  assert.deepEqual(await projectNames(page), ['Storyboard 1']);
+  assert.equal(await page.locator('#project-delete-btn').isDisabled(), true); // the last one stays
+  await descriptions(page).nth(0).fill('first board');
+
+  await page.click('#project-new-btn');
+  assert.deepEqual(await projectNames(page), ['Storyboard 1', 'Storyboard 2']);
+  assert.equal(await page.inputValue('#project-name-input'), 'Storyboard 2');
+  assert.equal(await descriptions(page).nth(0).inputValue(), ''); // blank
+  await descriptions(page).nth(0).fill('second board');
+  await page.fill('#soundscape-input', 'rain');
+
+  await page.fill('#project-name-input', 'Chase scene');
+  assert.deepEqual(await projectNames(page), ['Storyboard 1', 'Chase scene']);
+  await page.fill('#project-name-input', ''); // empty is not applied, restored on blur
+  await page.locator('#project-name-input').blur();
+  assert.equal(await page.inputValue('#project-name-input'), 'Chase scene');
+
+  await page.selectOption('#project-select', { label: 'Storyboard 1' });
+  assert.equal(await descriptions(page).nth(0).inputValue(), 'first board');
+  assert.equal(await page.inputValue('#soundscape-input'), 'N/A');
+  assert.match(await firstLine(page), /first board/);
+
+  await page.reload(); // active storyboard and all contents are restored
+  await page.waitForFunction(() => document.querySelectorAll('.shot-card').length > 0);
+  assert.equal(await page.inputValue('#project-select'), await page.evaluate(() => JSON.parse(localStorage.getItem('msp-projects')).activeId));
+  assert.equal(await descriptions(page).nth(0).inputValue(), 'first board');
+  await page.selectOption('#project-select', { label: 'Chase scene' });
+  assert.equal(await descriptions(page).nth(0).inputValue(), 'second board');
+  assert.equal(await page.inputValue('#soundscape-input'), 'rain');
+
+  await page.click('#project-delete-btn');
+  await page.locator('#confirm-modal').waitFor({ state: 'visible' });
+  await page.click('#confirm-cancel');
+  assert.deepEqual(await projectNames(page), ['Storyboard 1', 'Chase scene']);
+  await page.click('#project-delete-btn');
+  await page.click('#confirm-ok');
+  assert.deepEqual(await projectNames(page), ['Storyboard 1']);
+  assert.equal(await descriptions(page).nth(0).inputValue(), 'first board');
+  assert.equal(await page.locator('#project-delete-btn').isDisabled(), true);
+});
+
+test('a single saved storyboard from the old msp-shots key is migrated', async () => {
+  const legacy = { shots: [{ duration: '2.0', description: 'old data' }], overallSoundscape: 'N/A', nonDiegeticMusic: 'jazz' };
+  const { page } = await open({ storage: { 'msp-shots': JSON.stringify(legacy) } });
+  assert.deepEqual(await projectNames(page), ['Storyboard 1']);
+  assert.equal(await descriptions(page).nth(0).inputValue(), 'old data');
+  assert.equal(await page.inputValue('#music-input'), 'jazz');
+  assert.equal(await page.evaluate(() => localStorage.getItem('msp-shots')), null); // replaced by msp-projects
+  assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('msp-projects')).projects.length), 1);
+});
+
+test('storyboard export / import JSON (import adds a new storyboard, bad file)', async () => {
+  const { page } = await open();
+  await descriptions(page).nth(0).fill('first');
+  await durations(page).nth(0).fill('2');
+  await page.fill('#music-input', 'piano');
+  await page.fill('#project-name-input', 'My film');
+
+  const [download] = await Promise.all([page.waitForEvent('download'), page.click('#storyboard-export-btn')]);
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'msp-'));
+  const file = path.join(tmp, download.suggestedFilename());
+  await download.saveAs(file);
+  assert.match(download.suggestedFilename(), /^minimax-h3-storyboard-\d{8}\.json$/);
+  const exported = JSON.parse(fs.readFileSync(file, 'utf8'));
+  assert.equal(exported.type, 'minimax-h3-prompt-storyboard');
+  assert.equal(exported.name, 'My film');
+  assert.deepEqual(exported.shots[0], { duration: '2.0', description: 'first' });
+  assert.equal(exported.nonDiegeticMusic, 'piano');
+
+  // importing adds a second storyboard and opens it; the first one is untouched
+  await descriptions(page).nth(0).fill('changed');
+  await page.setInputFiles('#storyboard-import-file', file);
+  await page.waitForFunction(() => document.querySelectorAll('#project-select option').length === 2);
+  assert.equal(await page.inputValue('#project-name-input'), 'My film');
+  assert.equal(await descriptions(page).nth(0).inputValue(), 'first');
+  assert.equal(await page.inputValue('#music-input'), 'piano');
+  assert.equal(await page.textContent('#toast-msg'), 'Imported "My film" (2 shot(s))');
+  await page.selectOption('#project-select', { index: 0 });
+  assert.equal(await descriptions(page).nth(0).inputValue(), 'changed');
+
+  const bad = path.join(tmp, 'bad.json');
+  fs.writeFileSync(bad, '{"shots":[]}');
+  await page.setInputFiles('#storyboard-import-file', bad);
+  await page.waitForFunction(() => document.querySelector('#toast-msg').textContent.startsWith('Import failed'));
+  assert.equal(await page.locator('#project-select option').count(), 2);
+  fs.rmSync(tmp, { recursive: true, force: true });
+});
+
 test('copy button writes the prompt to the clipboard', async () => {
   const { page } = await open({ permissions: ['clipboard-read', 'clipboard-write'] });
   await descriptions(page).nth(0).fill('hello');
@@ -395,8 +543,12 @@ test('tag manager: export, restore defaults, import (merge), bad file', async ()
   assert.equal(exported.type, 'minimax-h3-prompt-tags');
   assert.deepEqual(exported.tags.map(t => t.text), ['mine', 'camera slowly pushes in']);
 
-  page.once('dialog', dialog => dialog.accept());
   await page.click('#tag-restore-btn');
+  await page.locator('#confirm-modal').waitFor({ state: 'visible' });
+  await page.click('#confirm-cancel');
+  assert.equal(await page.textContent('#tag-manage-count'), '2 tags');
+  await page.click('#tag-restore-btn');
+  await page.click('#confirm-ok');
   assert.equal(await page.textContent('#tag-manage-count'), '10 tags');
 
   await page.setInputFiles('#tag-import-file', file);

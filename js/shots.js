@@ -148,7 +148,7 @@ function render() {
 }
 
 // Update everything that depends on shot content without rebuilding the
-// cards (keeps focus / caret while typing).
+// cards (keeps focus / caret while typing). Also saves the storyboard.
 function refreshDerived() {
   const analysis = analyzeShots(state.shots);
   const cards = shotsListEl.querySelectorAll('.shot-card');
@@ -203,6 +203,7 @@ function refreshDerived() {
   const fullPrompt = currentPrompt();
   outputPreviewEl.textContent = fullPrompt;
   totalDurationEl.textContent = formatTimestamp(totalDuration(state.shots));
+  saveStoryboard();
 }
 
 function setActiveShot(index) {
