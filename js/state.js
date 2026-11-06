@@ -22,7 +22,8 @@ function saveTags() {
   } catch (e) { /* ignore */ }
 }
 
-const STORYBOARD_STORAGE_KEY = 'msp-shots';
+const PROJECTS_STORAGE_KEY = 'msp-projects';
+const LEGACY_STORYBOARD_KEY = 'msp-shots'; // single storyboard, before several could be saved
 
 let nextShotId = 100;
 
@@ -31,17 +32,38 @@ function withShotIds(shots) {
   return shots.map(shot => ({ id: nextShotId++, ...shot }));
 }
 
-function loadStoryboard() {
+// Saved storyboards → { projects, activeId }, or null when nothing usable is saved.
+function loadProjects() {
   try {
-    const raw = localStorage.getItem(STORYBOARD_STORAGE_KEY);
-    if (raw !== null) return parseStoryboard(JSON.parse(raw));
+    const raw = localStorage.getItem(PROJECTS_STORAGE_KEY);
+    if (raw !== null) return parseProjectsStore(JSON.parse(raw));
+    const legacy = localStorage.getItem(LEGACY_STORYBOARD_KEY);
+    if (legacy !== null) {
+      const board = parseStoryboard(JSON.parse(legacy));
+      return { projects: [{ ...board, id: 'p1', name: board.name || 'Storyboard 1' }], activeId: 'p1' };
+    }
   } catch (e) { /* storage unavailable or corrupted: start from the sample */ }
   return null;
 }
 
+function activeProject() {
+  return state.projects.find(p => p.id === state.activeProjectId);
+}
+
+// Copy the live shots / soundscape / music into the active project.
+function syncActiveProject() {
+  const project = activeProject();
+  if (!project) return;
+  project.shots = state.shots.map(({ duration, description }) => ({ duration, description }));
+  project.overallSoundscape = state.overallSoundscape;
+  project.nonDiegeticMusic = state.nonDiegeticMusic;
+}
+
 function saveStoryboard() {
+  syncActiveProject();
   try {
-    localStorage.setItem(STORYBOARD_STORAGE_KEY, JSON.stringify(buildStoryboardExport(state)));
+    localStorage.setItem(PROJECTS_STORAGE_KEY, JSON.stringify(buildProjectsStore(state.projects, state.activeProjectId)));
+    localStorage.removeItem(LEGACY_STORYBOARD_KEY);
   } catch (e) { /* ignore */ }
 }
 
@@ -63,13 +85,17 @@ function dateStamp() {
   return new Date().toISOString().slice(0, 10).replace(/-/g, '');
 }
 
-const savedStoryboard = loadStoryboard();
+const savedProjects = loadProjects() || { projects: [blankProject('p1', 'Storyboard 1')], activeId: 'p1' };
+const startProject = savedProjects.projects.find(p => p.id === savedProjects.activeId);
 
+// shots / overallSoundscape / nonDiegeticMusic hold the active storyboard.
 const state = {
   tags: loadTags(),
-  shots: savedStoryboard ? withShotIds(savedStoryboard.shots) : createInitialShots(),
-  overallSoundscape: savedStoryboard ? savedStoryboard.overallSoundscape : DEFAULT_AUDIO,
-  nonDiegeticMusic: savedStoryboard ? savedStoryboard.nonDiegeticMusic : DEFAULT_AUDIO,
+  projects: savedProjects.projects,
+  activeProjectId: savedProjects.activeId,
+  shots: withShotIds(startProject.shots),
+  overallSoundscape: startProject.overallSoundscape,
+  nonDiegeticMusic: startProject.nonDiegeticMusic,
   timeStepSec: 1,
   autoPeriod: true,
   activeShotIndex: 0,
@@ -111,6 +137,10 @@ const autoPeriodCheck = $('auto-period-check');
 const copyBtn = $('copy-btn');
 const copyText = $('copy-text');
 const resetBtn = $('reset-btn');
+const projectSelect = $('project-select');
+const projectNameInput = $('project-name-input');
+const projectNewBtn = $('project-new-btn');
+const projectDeleteBtn = $('project-delete-btn');
 const storyboardExportBtn = $('storyboard-export-btn');
 const storyboardImportBtn = $('storyboard-import-btn');
 const storyboardImportFile = $('storyboard-import-file');

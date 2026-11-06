@@ -55,11 +55,11 @@ non_diegetic_music: N/A
 - **Auto formatting**: optionally adds a period to the end of each shot.
 - **Prompt tags**: search and click common phrases to insert them into the current shot.
   Add, edit, delete, drag to reorder, and import or export your own tags as JSON.
-- **Storyboard file**: export or import the whole storyboard (shots, soundscape, music) as JSON.
+- **Several storyboards**: create, switch, rename, and delete saved storyboards, and export or import one (shots, soundscape, music) as JSON.
 - **Languages**: English, 繁體中文, and 日本語 (globe icon, top right).
 - **Desktop and mobile** layouts.
 
-Your tags, language choice, and storyboard (shots, soundscape, music) are saved
+Your tags, language choice, and storyboards (shots, soundscape, music) are saved
 automatically in the browser (`localStorage`), so reloading the page keeps them.
 
 ## Run it locally

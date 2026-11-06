@@ -124,18 +124,32 @@
             </div>
           </div>
 
-          <!-- Storyboard file: export / import everything on the page -->
-          <div class="sm:col-span-2 flex flex-wrap items-center gap-2.5">
-            <span data-i18n="storyboardLabel" class="text-xs sm:text-sm font-semibold text-slate-300 mr-1">Storyboard (auto-saved in this browser)</span>
-            <button id="storyboard-export-btn" type="button" class="px-3.5 py-2 text-xs sm:text-sm font-semibold text-slate-200 bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/60 rounded-xl transition-all flex items-center gap-1.5">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V4"></path></svg>
-              <span data-i18n="exportJson">Export JSON</span>
-            </button>
-            <button id="storyboard-import-btn" type="button" class="px-3.5 py-2 text-xs sm:text-sm font-semibold text-slate-200 bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/60 rounded-xl transition-all flex items-center gap-1.5">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M17 8l-5-5m0 0L7 8m5-5v12"></path></svg>
-              <span data-i18n="importJson">Import JSON</span>
-            </button>
-            <input id="storyboard-import-file" type="file" accept="application/json,.json" class="hidden">
+          <!-- Storyboards: switch / new / rename / delete, JSON export / import -->
+          <div class="sm:col-span-2 border-t border-slate-800 pt-4">
+            <span data-i18n="storyboardLabel" class="block text-xs sm:text-sm font-semibold text-slate-300">Storyboards (auto-saved in this browser)</span>
+            <div class="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              <select id="project-select" data-i18n-aria="projectSelectLabel" data-i18n-title="projectSelectLabel" class="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-3.5 py-2 text-xs sm:text-sm font-medium text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"></select>
+              <input id="project-name-input" type="text" maxlength="60" autocomplete="off" data-i18n-aria="projectNameLabel" data-i18n-title="projectNameLabel" data-i18n-placeholder="projectNameLabel" class="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-3.5 py-2 text-xs sm:text-sm font-medium text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            </div>
+            <div class="mt-2.5 flex flex-wrap items-center gap-2.5">
+              <button id="project-new-btn" type="button" class="px-3.5 py-2 text-xs sm:text-sm font-semibold text-slate-200 bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/60 rounded-xl transition-all flex items-center gap-1.5">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                <span data-i18n="newProject">New</span>
+              </button>
+              <button id="project-delete-btn" type="button" class="px-3.5 py-2 text-xs sm:text-sm font-semibold text-slate-300 hover:text-rose-300 bg-slate-800/80 hover:bg-rose-950/40 border border-slate-700/60 hover:border-rose-500/40 rounded-xl transition-all flex items-center gap-1.5 disabled:opacity-40 disabled:pointer-events-none">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                <span data-i18n="deleteProject">Delete</span>
+              </button>
+              <button id="storyboard-export-btn" type="button" class="px-3.5 py-2 text-xs sm:text-sm font-semibold text-slate-200 bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/60 rounded-xl transition-all flex items-center gap-1.5">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V4"></path></svg>
+                <span data-i18n="exportJson">Export JSON</span>
+              </button>
+              <button id="storyboard-import-btn" type="button" class="px-3.5 py-2 text-xs sm:text-sm font-semibold text-slate-200 bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/60 rounded-xl transition-all flex items-center gap-1.5">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M17 8l-5-5m0 0L7 8m5-5v12"></path></svg>
+                <span data-i18n="importJson">Import JSON</span>
+              </button>
+              <input id="storyboard-import-file" type="file" accept="application/json,.json" class="hidden">
+            </div>
           </div>
         </div>
       </div>
@@ -383,6 +397,7 @@
   <script src="js/shots.js"></script>
   <script src="js/tags.js"></script>
   <script src="js/paste.js"></script>
+  <script src="js/projects.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>
