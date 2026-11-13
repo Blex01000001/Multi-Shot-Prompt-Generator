@@ -170,7 +170,7 @@ function totalDuration(shots) {
   ), 0);
 }
 
-// Build the MiniMax H3 prompt. See "輸出格式" in CLAUDE.md — do not change the
+// Build the MiniMax H3 prompt. See docs/FORMAT.md — do not change the
 // format without asking the user.
 //   integrated_multimodal_description: [Shot 1] At 00:00.000, text. [Shot 2] ...
 //
