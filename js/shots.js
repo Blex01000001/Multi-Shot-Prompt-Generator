@@ -143,7 +143,8 @@ function render() {
   // Update Shot Counter
   shotCountBadgeEl.textContent = state.shots.length;
 
-  // 2. Labels, validation and live output
+  // 2. ref2va fields (shown only in that mode), labels, validation and live output
+  renderRefUi();
   refreshDerived();
 }
 

@@ -9,15 +9,11 @@
 
 1. 【使用者】新增 `.claude/settings.json`：註冊 SessionStart hook（`$CLAUDE_PROJECT_DIR/.claude/hooks/session-start.sh`，腳本已在 repo，但尚未註冊所以不會執行），並加權限白名單（`npm test`、`npm run test:*`、`npm run screenshots`、`git status`、`git log`、`git diff`、`git show`）。Claude 寫入此檔會被自動模式擋下，不要繞過。
 2. 【先討論】Tailwind Play CDN 的 console 警告與載入時短暫無樣式：根治要改用預先產生的 CSS，等於引入建置步驟。
-3. 【先討論】新增第二種 Prompt 格式（官方 Ref2VA 六段式）。官方規格已逐字核對、摘要在 `docs/MULTIMODAL-SPEC.md`，動手前先讀。已定：同一頁、每份分鏡各存 `format`，兩種格式的內容（鏡頭、音效、音樂）各存一份、互不影響，舊資料與未標格式的匯入視為 image-to-video；輸出照官方，現有格式輸出不變。
-   - 參考清單：類型（Subject／Picture／Video／Audio，各類獨立編號）、定義、保留標記（下拉，資料放在容易增加處）、保留說明；同時產生 `subject_definitions` 與 `retention_analysis`，`appears in [Shot …]` 由掃描鏡頭描述自動算出。Picture 只在「首幀／關鍵幀／分鏡參考」時單獨列，其餘寫進 Subject 定義（官方規定）。
-   - `summary` 前綴 6 個值（含 `keyframe completion`）、多選、` + ` 串接、不可重複、預設 `reference generation`。
-   - 社群寫法（`retention_analysis` 整段自由文字）以「自由文字模式」備案；插入按鈕含 `<d>[Language] …</d>`；`parsePrompt()` 要能辨識兩種格式。
-   - 現有格式已補官方 I2VA 關鍵幀對齊句；FL2VA／L2VA（首尾幀）目前不支援。
-   - Base 家族（T2VA／I2VA／FL2VA／L2VA）只差最前面的對齊句：T2VA 不加，I2VA 單圖首幀（現況），FL2VA 首尾幀、L2VA 尾幀各有不同句型（見 `docs/MULTIMODAL-SPEC.md` 末段與官方 `base-en.txt`）。Base 內的 T2VA／I2VA「Prompt 模式」下拉已做；FL2VA／L2VA 之後再擴充（需要首尾幀圖片欄位），與 Ref2VA 一起規劃；屬輸出格式變更，動手前要先問。
 
 ## 已知問題／限制
 
+- Ref2VA：刪除或改類型的參考素材會讓同類標籤重新編號，鏡頭文字裡已寫的 `<Subject 2>` 不會跟著改；貼上的 Prompt 若標籤編號不連續也會被重新編號。
+- Ref2VA 第一個鏡頭的卡片仍顯示 `At 00:00.000`，但輸出照官方不寫 `At`。
 - 分鏡名稱可重複；沒有分鏡數量上限（全存在 localStorage，約 5MB 上限）。
 - 手機上鏡頭卡片的持續時間框和微調按鈕分成兩列（外框讓寬度少了幾 px），卡片較高。
 - 桌機卡片右上已有 6 個按鈕（上、下、貼上、複製、刪除、拖曳），標題列幾乎沒有空間再加按鈕；要加的話考慮「更多」選單。
@@ -30,6 +26,9 @@
 
 ## 想法（尚未決定要不要做）
 
+- Ref2VA：插入對白 `<d>[Language] …</d>` 的按鈕、檢查鏡頭裡用到但沒定義的標籤（或定義了卻沒用到）、Prompt 長度／影片總長 4–15 秒提醒。
+- FL2VA／L2VA（首尾幀、尾幀）的對齊句與第二張圖片欄位。
+- 「複製整份分鏡」時，Ref2VA 與 Base 的內容是否一起複製（目前兩邊都會複製）。
 - PREVIEW 加「目標總長度」（例如 6 秒），超過時總長度標籤變黃／紅提醒。
 - 「平均分配」：輸入總長度，平均分給所有會輸出的鏡頭；或一鍵把所有持續時間設為預設值。
 - 音效卡片加「設為 N/A」按鈕，或提供常用環境音效／音樂標籤。

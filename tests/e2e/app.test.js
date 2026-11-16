@@ -265,6 +265,74 @@ test('default duration, auto period and prompt mode are saved and restored', asy
   assert.equal((await durationValues(page)).at(-1), '2.0');
 });
 
+test('ref2va: own shots, reference list with computed appears-in, saved and restored', async () => {
+  const { page } = await open();
+  await descriptions(page).nth(0).fill('base shot');
+  assert.equal(await page.locator('#ref-sections').isVisible(), false);
+  await page.selectOption('#mode-select', 'ref2va');
+  assert.equal(await page.locator('#ref-sections').isVisible(), true);
+  assert.equal(await page.textContent('#shots-field-name'), 'detailed_description');
+  assert.deepEqual(await descriptionValues(page), ['', '']); // the base shots are kept apart
+  await page.click('[data-ref-add="Subject"]');
+  await page.locator('[data-ref-field="definition"]').fill('is the woman in <Picture 1>');
+  await page.locator('[data-ref-field="note"]').fill('face kept');
+  await page.click('[data-ref-add="Audio"]');
+  assert.deepEqual(await page.locator('.ref-label').allTextContents(), ['<Subject 1>', '<Audio 1>']);
+  assert.deepEqual(await page.locator('.ref-item').nth(1).locator('[data-ref-field="marker"] option').allTextContents(),
+    ['fully_copy', 'partially_copy', 'reference', 'weak_reference']);
+  await page.fill('#style-input', 'A warm style.');
+  await page.locator('[data-summary-type="video editing"]').click();
+  await page.fill('#summary-input', 'She reads.');
+  await descriptions(page).nth(0).fill('first');
+  await page.click('.ref-item >> nth=0 >> [data-ref-action="insert"]');
+  await descriptions(page).nth(1).fill('second');
+  const out = await output(page);
+  assert.match(out, /^subject_definitions:\n<Subject 1> is the woman in <Picture 1>\n/);
+  assert.match(out, /\nsummary:\n\[reference generation \+ video editing\] She reads\.\n/);
+  assert.match(out, /<Subject 1> \(appears in \[Shot 1\]\): fully_preserved - face kept\n<Audio 1>: fully_copy\n/);
+  assert.match(out, /\ndetailed_description:\nA warm style\.\n\[Shot 1\] first <Subject 1>\.\n\[Shot 2\] At 00:01\.000, second\.\n/);
+
+  await page.reload();
+  await page.waitForSelector('.shot-card');
+  assert.equal(await page.locator('#mode-select').inputValue(), 'ref2va');
+  assert.deepEqual(await page.locator('.ref-label').allTextContents(), ['<Subject 1>', '<Audio 1>']);
+  assert.equal(await page.inputValue('#style-input'), 'A warm style.');
+
+  await page.selectOption('#mode-select', 'i2va');
+  assert.deepEqual(await descriptionValues(page), ['base shot', '']);
+  assert.equal(await page.locator('#ref-sections').isVisible(), false);
+  await page.selectOption('#mode-select', 'ref2va');
+  assert.deepEqual(await descriptionValues(page), ['first <Subject 1>', 'second']);
+
+  // free-text retention
+  await page.check('#retention-free-check');
+  await page.fill('#retention-free-input', 'Keep her face.');
+  assert.match(await output(page), /\nretention_analysis:\nKeep her face\.\n\ndetailed_description:/);
+  // deleting a reference renumbers the rest
+  await page.click('.ref-item >> nth=0 >> [data-ref-action="delete"]');
+  assert.deepEqual(await page.locator('.ref-label').allTextContents(), ['<Audio 1>']);
+});
+
+test('paste prompt: a ref2va prompt switches the mode and fills the reference fields', async () => {
+  const { page, context } = await open();
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+  const text = ['subject_definitions:', '<Subject 1> is the woman in <Picture 1>.', '',
+    'summary:', '[reference generation + audio reference] She reads.', '',
+    'retention_analysis:', '<Subject 1> (appears in [Shot 1]): partially_preserved - face only.', '',
+    'detailed_description:', 'A warm style.', '[Shot 1] <Subject 1> reads.', '[Shot 2] At 00:02.000, she looks up.', '',
+    'overall_soundscape:', 'room tone', '', 'non_diegetic_music:', 'N/A'].join('\n');
+  await page.evaluate((t) => navigator.clipboard.writeText(t), text);
+  await page.click('#paste-prompt-btn');
+  await page.waitForFunction(() => document.querySelector('#mode-select').value === 'ref2va');
+  assert.deepEqual(await descriptionValues(page), ['<Subject 1> reads.', 'she looks up.']);
+  assert.deepEqual(await durationValues(page), ['2.0', '1.0']);
+  assert.equal(await page.inputValue('#style-input'), 'A warm style.');
+  assert.equal(await page.locator('[data-ref-field="marker"]').inputValue(), 'partially_preserved');
+  assert.equal(await page.inputValue('#summary-input'), 'She reads.');
+  assert.equal(await page.locator('[data-summary-type="audio reference"]').getAttribute('aria-pressed'), 'true');
+  assert.equal(await output(page), text);
+});
+
 test('a corrupted saved storyboard falls back to the blank sample', async () => {
   const { page } = await open({ storage: { 'msp-projects': '{oops' } });
   assert.equal(await descriptions(page).count(), 2);

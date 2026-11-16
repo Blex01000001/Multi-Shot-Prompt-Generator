@@ -142,6 +142,7 @@ function resetSample() {
   state.shots = createInitialShots();
   state.overallSoundscape = DEFAULT_AUDIO;
   state.nonDiegeticMusic = DEFAULT_AUDIO;
+  if (state.mode === 'ref2va') state.ref = blankRefFields();
   syncAudioInputs();
   state.activeShotIndex = 0;
   render();
@@ -170,9 +171,7 @@ function initGlobalControls() {
   });
 
   modeSelect.addEventListener('change', (e) => {
-    if (!PROMPT_MODES.includes(e.target.value)) return;
-    state.mode = e.target.value;
-    refreshDerived();
+    setPromptMode(e.target.value);
   });
 
   autoPeriodCheck.addEventListener('change', (e) => {
@@ -201,6 +200,7 @@ initLanguageMenu();
 initTags();
 initPaste();
 initProjects();
+initRef();
 initConfirm();
 initShots();
 applyLanguage();

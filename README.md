@@ -28,6 +28,7 @@ overall_soundscape: gentle wind, distant city ambience
 non_diegetic_music: N/A
 ```
 
+- **Multimodal reference (Ref2VA)** mode writes the six-section format (`subject_definitions`, `summary`, `retention_analysis`, `detailed_description`, …) with a reference list and keeps its own shots.
 - The first line is the keyframe sentence for the input image (**Image to video, I2VA**). Choose **Text to video (T2VA)** under *Prompt mode* to leave it out.
 - Timestamps use `MM:SS.mmm`.
 - Shots with an empty description are left out, and the remaining shots are renumbered.
