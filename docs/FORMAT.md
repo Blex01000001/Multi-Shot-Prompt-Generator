@@ -7,12 +7,15 @@
 `buildPrompt()`（`core.js`）產生：
 
 ```
+For the target video, at 0.00 seconds into the target video, <Picture 1> (from [Shot 1]) is fully referenced.
+
 integrated_multimodal_description: [Shot 1] At 00:00.000, <描述>. [Shot 2] At 00:01.000, <描述>.
 
 overall_soundscape: <環境音效，預設 N/A>
 non_diegetic_music: <背景音樂，預設 N/A>
 ```
 
+- 第一行固定是官方 I2VA 關鍵幀對齊句（`KEYFRAME_ALIGNMENT`，本工具視為一張圖當首幀），後面空一行再接欄位。`parsePrompt()` 會略過它。
 - 時間戳記 `MM:SS.mmm`；鏡頭之間一個半形空格；「自動格式優化」開啟時描述結尾補 `.`。
 - **描述空白的鏡頭不輸出**，其餘依序重新編號；卡片標籤顯示輸出編號，空白卡片顯示 `[Shot –]`。
 - **鏡頭存的是持續時間**（`shot.duration`，秒數字串如 `"1.5"`），`At` 時間由 `analyzeShots()` 算出：第一個輸出的鏡頭從 `00:00.000` 開始，之後每個鏡頭的開始時間是前面「會輸出的」鏡頭持續時間加總。空白鏡頭不計入時間軸（卡片顯示 `At –`）。PREVIEW 顯示總長度 `totalDuration()`（只加總會輸出的鏡頭）。

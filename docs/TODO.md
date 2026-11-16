@@ -13,7 +13,7 @@
    - 參考清單：類型（Subject／Picture／Video／Audio，各類獨立編號）、定義、保留標記（下拉，資料放在容易增加處）、保留說明；同時產生 `subject_definitions` 與 `retention_analysis`，`appears in [Shot …]` 由掃描鏡頭描述自動算出。Picture 只在「首幀／關鍵幀／分鏡參考」時單獨列，其餘寫進 Subject 定義（官方規定）。
    - `summary` 前綴 6 個值（含 `keyframe completion`）、多選、` + ` 串接、不可重複、預設 `reference generation`。
    - 社群寫法（`retention_analysis` 整段自由文字）以「自由文字模式」備案；插入按鈕含 `<d>[Language] …</d>`；`parsePrompt()` 要能辨識兩種格式。
-   - 待確認：官方 I2VA／FL2VA／L2VA 輸出最前面還有一行關鍵幀對齊句＋空行，現有 image-to-video 格式沒有（見規格文件末段），要不要補？屬輸出格式變更，要先問。
+   - 現有格式已補官方 I2VA 關鍵幀對齊句；FL2VA／L2VA（首尾幀）目前不支援。
 
 ## 已知問題／限制
 

@@ -57,4 +57,4 @@
 ## 與現有 image-to-video 格式的差異（`base-en.txt`）
 
 - Base 模式欄位是 `integrated_multimodal_description`／`overall_soundscape`／`non_diegetic_music`，風格寫在 `[Shot 1]` **之後**。
-- I2VA／FL2VA／L2VA 的完整輸出最前面還有一行關鍵幀對齊句＋一個空行，例如 I2VA：`For the target video, at 0.00 seconds into the target video, <Picture 1> (from [Shot 1]) is fully referenced.` 現有 `buildPrompt()` 沒有這一行（T2VA 才不需要）。
+- I2VA／FL2VA／L2VA 的完整輸出最前面還有一行關鍵幀對齊句＋一個空行，例如 I2VA：`For the target video, at 0.00 seconds into the target video, <Picture 1> (from [Shot 1]) is fully referenced.` 現有 `buildPrompt()` 已補上 I2VA 這一行（單一圖片當首幀）。

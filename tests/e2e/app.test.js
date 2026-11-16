@@ -33,7 +33,7 @@ test.afterEach(async () => {
 });
 
 const output = (page) => page.locator('#output-preview').textContent();
-const firstLine = async (page) => (await output(page)).split('\n')[0];
+const firstLine = async (page) => (await output(page)).split('\n')[2]; // the integrated_multimodal_description line (line 0 is the keyframe alignment sentence)
 const descriptions = (page) => page.locator('textarea.shot-input');
 const descriptionValues = (page) => descriptions(page).evaluateAll(els => els.map(e => e.value));
 const durations = (page) => page.locator('.dur-input');

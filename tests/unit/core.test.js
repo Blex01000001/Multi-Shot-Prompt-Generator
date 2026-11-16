@@ -34,8 +34,15 @@ test('buildPrompt: format, spacing, auto period, N/A defaults; At = sum of earli
     nonDiegeticMusic: ' soft piano ',
   });
   assert.equal(out,
+    core.KEYFRAME_ALIGNMENT + '\n\n' +
     'integrated_multimodal_description: [Shot 1] At 00:00.000, a girl smiles. [Shot 2] At 00:01.500, camera pushes in. [Shot 3] At 00:03.500, she waves.' +
     '\n\noverall_soundscape: N/A\nnon_diegetic_music: soft piano');
+});
+test('buildPrompt: starts with the I2VA keyframe alignment line and one blank line', () => {
+  const out = core.buildPrompt({ shots: [shot('1.0', 'x')], autoPeriod: true });
+  assert.equal(core.KEYFRAME_ALIGNMENT,
+    'For the target video, at 0.00 seconds into the target video, <Picture 1> (from [Shot 1]) is fully referenced.');
+  assert.ok(out.startsWith(core.KEYFRAME_ALIGNMENT + '\n\nintegrated_multimodal_description: '));
 });
 test('buildPrompt: autoPeriod off leaves text untouched', () => {
   const out = core.buildPrompt({ shots: [shot('1.0', 'no period')], autoPeriod: false });
@@ -46,7 +53,7 @@ test('buildPrompt: empty shots are skipped, renumbered and not counted in the ti
     shots: [shot('1.0', 'one'), shot('5.0', '   '), shot('1.0', 'three')],
     autoPeriod: true,
   });
-  assert.match(out, /^integrated_multimodal_description: \[Shot 1\] At 00:00\.000, one\. \[Shot 2\] At 00:01\.000, three\.\n/);
+  assert.match(out, /\nintegrated_multimodal_description: \[Shot 1\] At 00:00\.000, one\. \[Shot 2\] At 00:01\.000, three\.\n/);
 });
 test('analyzeShots: numbering and start times skip empty shots', () => {
   const info = core.analyzeShots([shot('1.0', 'a'), shot('3.0', ''), shot('0.5', 'c'), shot('2.0', 'd')]);
@@ -316,6 +323,14 @@ test('parsePrompt: round-trips buildPrompt output', () => {
   assert.deepEqual(r.shots, input.shots.map(({ duration, description }) => ({ duration, description })));
   assert.equal(r.overallSoundscape, 'rain on a window');
   assert.equal(r.nonDiegeticMusic, 'soft piano');
+});
+
+test('parsePrompt: ignores the keyframe alignment line, with or without field names', () => {
+  const line = core.KEYFRAME_ALIGNMENT;
+  const bare = core.parsePrompt(line + '\n\n[Shot 1] At 00:00.000, one. [Shot 2] At 00:01.000, two.', 1);
+  assert.deepEqual(bare.shots.map(s => s.description), ['one.', 'two.']);
+  const full = core.parsePrompt(line + '\n\nintegrated_multimodal_description: [Shot 1] At 00:00.000, one.', 1);
+  assert.deepEqual(full.shots.map(s => s.description), ['one.']);
 });
 
 test('parsePrompt: cleans spaces, line breaks, CRLF and invisible characters', () => {
