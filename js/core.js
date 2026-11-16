@@ -173,17 +173,21 @@ function totalDuration(shots) {
 // Build the MiniMax H3 prompt. See docs/FORMAT.md — do not change the
 // format without asking the user.
 // `mode`: 'i2va' (default) starts with the keyframe alignment sentence and a
-// blank line; 't2va' (text only, no input image) leaves both out.
+// blank line; 't2va' (text only, no input image) leaves both out; 'ref2va' is
+// the six-section multimodal reference format (buildRefPrompt, `ref` holds its
+// extra fields).
 //   <KEYFRAME_ALIGNMENT line>   (i2va only)
 //
 //   integrated_multimodal_description: [Shot 1] At 00:00.000, text. [Shot 2] ...
 //
 //   overall_soundscape: ...
 //   non_diegetic_music: ...
-const PROMPT_MODES = ['i2va', 't2va'];
+const BASE_MODES = ['i2va', 't2va'];
+const PROMPT_MODES = [...BASE_MODES, 'ref2va'];
 const KEYFRAME_ALIGNMENT = 'For the target video, at 0.00 seconds into the target video, <Picture 1> (from [Shot 1]) is fully referenced.';
 
-function buildPrompt({ shots, autoPeriod, overallSoundscape, nonDiegeticMusic, mode = 'i2va' }) {
+function buildPrompt({ shots, autoPeriod, overallSoundscape, nonDiegeticMusic, mode = 'i2va', ref }) {
+  if (mode === 'ref2va') return buildRefPrompt({ shots, autoPeriod, overallSoundscape, nonDiegeticMusic, ref });
   const parts = [];
   const analysis = analyzeShots(shots);
 
@@ -203,6 +207,174 @@ function buildPrompt({ shots, autoPeriod, overallSoundscape, nonDiegeticMusic, m
 
   const intro = mode === 't2va' ? '' : `${KEYFRAME_ALIGNMENT}\n\n`;
   return `${intro}integrated_multimodal_description: ${parts.join(' ')}\n\noverall_soundscape: ${soundscape}\nnon_diegetic_music: ${music}`;
+}
+
+// -----------------------------------------------------------------------------
+// Multimodal reference format (MiniMax H3 "Ref2VA"): six sections. Rules are
+// summarized in docs/MULTIMODAL-SPEC.md. `ref` holds the extra fields:
+//   { style, summaryTypes: [..], summary, retentionMode: 'list' | 'free',
+//     retentionFree, refs: [{ type, definition, marker, scope, note }] }
+// A saved project also keeps the shots / audio of this format in `project.ref`.
+// -----------------------------------------------------------------------------
+const REF_TYPES = ['Subject', 'Picture', 'Video', 'Audio'];
+// Relationship markers (fixed English values). Add a value here and it shows
+// up in the marker lists; the first one of each list is the default.
+const RETENTION_MARKERS = {
+  visual: ['fully_preserved', 'partially_preserved', 'attribute_transfer', 'weak_reference'],
+  audio: ['fully_copy', 'partially_copy', 'reference', 'weak_reference'],
+};
+const SUMMARY_TYPES = ['reference generation', 'keyframe completion', 'video editing', 'video continuation', 'audio reuse', 'audio reference'];
+
+function markersFor(type) {
+  return type === 'Audio' ? RETENTION_MARKERS.audio : RETENTION_MARKERS.visual;
+}
+
+function blankRefItem(type = 'Subject') {
+  return { type, definition: '', marker: markersFor(type)[0], scope: '', note: '' };
+}
+
+// Extra fields only (no shots / audio): what the UI edits.
+function blankRefFields() {
+  return {
+    style: '',
+    summaryTypes: ['reference generation'],
+    summary: '',
+    refs: [],
+    retentionMode: 'list',
+    retentionFree: '',
+  };
+}
+
+// A saved ref2va content: shots / audio of this format plus the extra fields.
+function blankRef() {
+  return {
+    ...blankRefFields(),
+    shots: createInitialShots().map(({ duration, description }) => ({ duration, description })),
+    overallSoundscape: DEFAULT_AUDIO,
+    nonDiegeticMusic: DEFAULT_AUDIO,
+  };
+}
+
+// Clean up a ref value read from storage / a file. Missing parts get defaults.
+function normalizeRef(raw) {
+  const r = raw && typeof raw === 'object' ? raw : {};
+  const text = (v) => (typeof v === 'string' ? v : typeof v === 'number' ? String(v) : '');
+  const blank = blankRef();
+  const refs = (Array.isArray(r.refs) ? r.refs : [])
+    .filter(x => x && typeof x === 'object')
+    .map(x => {
+      const type = REF_TYPES.includes(x.type) ? x.type : 'Subject';
+      return { type, definition: text(x.definition), marker: text(x.marker).trim() || markersFor(type)[0], scope: text(x.scope), note: text(x.note) };
+    });
+  const types = Array.isArray(r.summaryTypes)
+    ? [...new Set(r.summaryTypes.map(v => text(v).trim()).filter(Boolean))]
+    : blank.summaryTypes;
+  const shots = (Array.isArray(r.shots) ? r.shots : [])
+    .filter(s => s && typeof s === 'object')
+    .map(s => ({ duration: text(s.duration) || '1.0', description: text(s.description) }));
+  const audio = (v) => collapseSpaces(text(v)) || DEFAULT_AUDIO;
+  return {
+    style: text(r.style),
+    summaryTypes: types,
+    summary: text(r.summary),
+    refs,
+    retentionMode: r.retentionMode === 'free' ? 'free' : 'list',
+    retentionFree: text(r.retentionFree),
+    shots: shots.length ? shots : blank.shots,
+    overallSoundscape: audio(r.overallSoundscape),
+    nonDiegeticMusic: audio(r.nonDiegeticMusic),
+  };
+}
+
+// Plain copy for saving (no card ids; shots may be omitted for the live fields).
+function serializeRef(ref) {
+  const r = normalizeRef(ref);
+  return {
+    ...r,
+    refs: r.refs.map(item => ({ ...item })),
+    shots: r.shots.map(({ duration, description }) => ({ duration, description })),
+  };
+}
+
+// "<Subject 1>", "<Picture 1>", "<Subject 2>", ...: each type counts on its own.
+function refLabels(refs) {
+  const count = {};
+  return refs.map(item => {
+    count[item.type] = (count[item.type] || 0) + 1;
+    return `<${item.type} ${count[item.type]}>`;
+  });
+}
+
+// Output shot numbers (1-based, empty shots skipped) whose description uses `label`.
+function shotsUsingLabel(shots, label) {
+  const found = [];
+  let n = 0;
+  shots.forEach(shot => {
+    if (!shot.description.trim()) return;
+    n += 1;
+    if (shot.description.includes(label)) found.push(n);
+  });
+  return found;
+}
+
+// Label + text. A text that starts with ":" is joined without a space
+// ("<Picture 1>: …"); otherwise "<Subject 1> is …".
+function joinLabel(label, text) {
+  const body = collapseSpaces(text);
+  return body.startsWith(':') ? label + body : `${label} ${body}`;
+}
+
+function buildRefPrompt({ shots, autoPeriod, overallSoundscape, nonDiegeticMusic, ref }) {
+  const r = ref || blankRefFields();
+  const analysis = analyzeShots(shots);
+  const labels = refLabels(r.refs);
+
+  const definitions = r.refs
+    .map((item, i) => (collapseSpaces(item.definition) ? joinLabel(labels[i], item.definition) : null))
+    .filter(Boolean);
+
+  const types = (r.summaryTypes || []).filter(Boolean);
+  const summaryText = collapseSpaces(r.summary || '');
+  const summary = [types.length ? `[${types.join(' + ')}]` : '', summaryText].filter(Boolean).join(' ');
+
+  let retention;
+  if (r.retentionMode === 'free') {
+    retention = (r.retentionFree || '').trim();
+  } else {
+    retention = r.refs.map((item, i) => {
+      let scope = '';
+      if (item.type === 'Subject') {
+        const used = shotsUsingLabel(shots, labels[i]);
+        if (used.length) scope = `appears in ${used.map(n => `[Shot ${n}]`).join(', ')}`;
+      } else if (item.type !== 'Audio') {
+        scope = collapseSpaces(item.scope || '');
+      }
+      const note = collapseSpaces(item.note || '');
+      return `${labels[i]}${scope ? ` (${scope})` : ''}: ${item.marker || markersFor(item.type)[0]}${note ? ` - ${note}` : ''}`;
+    }).join('\n');
+  }
+
+  const lines = [];
+  const style = collapseSpaces(r.style || '');
+  if (style) lines.push(style);
+  let n = 0;
+  shots.forEach((shot, i) => {
+    let text = shot.description.trim();
+    if (!text) return;
+    n += 1;
+    if (autoPeriod && !text.endsWith('.')) text += '.';
+    lines.push(n === 1 ? `[Shot 1] ${text}` : `[Shot ${n}] At ${analysis[i].start}, ${text}`);
+  });
+
+  const sections = [
+    ['subject_definitions', definitions.join('\n')],
+    ['summary', summary],
+    ['retention_analysis', retention],
+    ['detailed_description', lines.join('\n')],
+    ['overall_soundscape', (overallSoundscape || '').trim() || DEFAULT_AUDIO],
+    ['non_diegetic_music', (nonDiegeticMusic || '').trim() || DEFAULT_AUDIO],
+  ];
+  return sections.map(([name, body]) => (body ? `${name}:\n${body}` : `${name}:`)).join('\n\n');
 }
 
 // -----------------------------------------------------------------------------
@@ -242,6 +414,7 @@ function cleanShotText(text) {
 
 function parsePrompt(text, lastDurationSec = 1) {
   const clean = cleanPromptText(text);
+  if (REF_DETECT_RE.test(clean)) return parseRefPrompt(clean, lastDurationSec);
 
   // Split into { fieldName: value }; text before the first field name is the preamble.
   const fields = {};
@@ -274,6 +447,95 @@ function parsePrompt(text, lastDurationSec = 1) {
     overallSoundscape: audio('overall_soundscape'),
     nonDiegeticMusic: audio('non_diegetic_music'),
     mode: ALIGNMENT_RE.test(clean) ? 'i2va' : 't2va',
+  };
+}
+
+// Reverse of buildRefPrompt (used by "Paste prompt"). Lenient like parsePrompt.
+// Returns { shots, overallSoundscape, nonDiegeticMusic, mode: 'ref2va',
+// ref: { style, summaryTypes, summary, refs, retentionMode, retentionFree } }
+// or null when no shot is found. A retention_analysis that does not fit the
+// "<Label> (…): marker - note" lines of the defined labels is kept as free text.
+const REF_FIELD_RE = /^[ \t]*(subject_definitions|summary|retention_analysis|detailed_description|overall_soundscape|non_diegetic_music)[ \t]*:/gim;
+const REF_DETECT_RE = /^[ \t]*(subject_definitions|retention_analysis|detailed_description)[ \t]*:/im;
+const REF_LABEL_RE = /^<\s*(Subject|Picture|Video|Audio)\s+(\d+)\s*>\s*/i;
+const REF_SHOT_RE = /\[\s*shot\s*\d*\s*\]\s*(?:at\s+([0-9:.]+)\s*,?)?/gi;
+
+function parseRefPrompt(clean, lastDurationSec = 1) {
+  const fields = {};
+  const marks = [...clean.matchAll(REF_FIELD_RE)];
+  marks.forEach((m, i) => {
+    const end = i + 1 < marks.length ? marks[i + 1].index : clean.length;
+    fields[m[1].toLowerCase()] = clean.slice(m.index + m[0].length, end).trim();
+  });
+
+  const detailed = fields.detailed_description || '';
+  const shotMarks = [...detailed.matchAll(REF_SHOT_RE)];
+  if (shotMarks.length === 0) return null;
+  const style = collapseSpaces(detailed.slice(0, shotMarks[0].index));
+  const times = shotMarks.map((m, i) => {
+    if (!m[1]) return i === 0 ? 0 : null;
+    const ts = normalizeTimestamp(m[1]);
+    return isValidTimestamp(ts) ? parseTimestamp(ts) : null;
+  });
+  const shots = shotMarks.map((m, i) => {
+    const end = i + 1 < shotMarks.length ? shotMarks[i + 1].index : detailed.length;
+    let duration;
+    if (i + 1 === shotMarks.length) duration = formatDuration(lastDurationSec);
+    else if (times[i] === null || times[i + 1] === null) duration = '';
+    else duration = formatDuration(times[i + 1] - times[i]);
+    return { duration, description: collapseSpaces(detailed.slice(m.index + m[0].length, end)) };
+  });
+
+  // subject_definitions: one "<Type N> text" per line (other lines continue the previous one)
+  const refs = [];
+  (fields.subject_definitions || '').split('\n').map(l => l.trim()).filter(Boolean).forEach(line => {
+    const m = REF_LABEL_RE.exec(line);
+    if (m) {
+      const type = REF_TYPES.find(x => x.toLowerCase() === m[1].toLowerCase());
+      refs.push({ ...blankRefItem(type), definition: line.slice(m[0].length) });
+    } else if (refs.length) {
+      refs[refs.length - 1].definition += ` ${line}`;
+    }
+  });
+  refs.forEach(item => { item.definition = collapseSpaces(item.definition); });
+  const labels = refLabels(refs);
+
+  // retention_analysis: list mode when every line is "<label> (scope): marker - note" of a defined label
+  let retentionMode = 'list';
+  let retentionFree = '';
+  const retentionText = fields.retention_analysis || '';
+  if (retentionText) {
+    const lines = retentionText.split('\n').map(l => l.trim()).filter(Boolean);
+    const parsedLines = lines.map(line => {
+      const m = /^(<\s*(?:Subject|Picture|Video|Audio)\s+\d+\s*>)\s*(?:\(([^)]*)\))?\s*:\s*([A-Za-z_]+)\s*(?:-\s*([\s\S]*))?$/.exec(line);
+      if (!m) return null;
+      const label = m[1].replace(/\s+/g, ' ').replace('< ', '<').replace(' >', '>');
+      const index = labels.findIndex(l => l.toLowerCase() === label.toLowerCase());
+      return index < 0 ? null : { index, scope: collapseSpaces(m[2] || ''), marker: m[3], note: collapseSpaces(m[4] || '') };
+    });
+    if (parsedLines.every(Boolean)) {
+      parsedLines.forEach(p => {
+        const item = refs[p.index];
+        item.marker = p.marker;
+        item.note = p.note;
+        if (item.type === 'Picture' || item.type === 'Video') item.scope = p.scope;
+      });
+    } else {
+      retentionMode = 'free';
+      retentionFree = lines.join('\n');
+    }
+  }
+
+  const summaryRaw = collapseSpaces(fields.summary || '');
+  const sm = /^\[([^\]]*)\]\s*([\s\S]*)$/.exec(summaryRaw);
+  const summaryTypes = sm ? [...new Set(sm[1].split('+').map(v => v.trim()).filter(Boolean))] : [];
+  const audio = (name) => collapseSpaces(fields[name] || '') || DEFAULT_AUDIO;
+  return {
+    shots,
+    overallSoundscape: audio('overall_soundscape'),
+    nonDiegeticMusic: audio('non_diegetic_music'),
+    mode: 'ref2va',
+    ref: { style, summaryTypes, summary: sm ? sm[2] : summaryRaw, refs, retentionMode, retentionFree },
   };
 }
 
@@ -393,12 +655,14 @@ function buildStoryboardExport(state, now = new Date()) {
     shots: state.shots.map(({ duration, description }) => ({ duration, description })),
     overallSoundscape: state.overallSoundscape,
     nonDiegeticMusic: state.nonDiegeticMusic,
+    ...(state.ref ? { ref: serializeRef(state.ref) } : {}),
   };
 }
 
 // Read a saved storyboard. Returns { name, mode, shots: [{ duration, description }],
-// overallSoundscape, nonDiegeticMusic } (name is '' when missing; mode is
-// 'i2va' unless the file says 't2va'; callers add
+// overallSoundscape, nonDiegeticMusic, ref } (name is '' when missing; mode is
+// 'i2va' unless the file says otherwise; ref is the ref2va content, see
+// normalizeRef; callers add
 // the shot ids); throws if
 // `data` holds no shot list. Missing durations become "1.0", audio fields are
 // one line and fall back to N/A; other bad values are kept so the card shows
@@ -418,6 +682,7 @@ function parseStoryboard(data) {
     shots,
     overallSoundscape: audio(data.overallSoundscape),
     nonDiegeticMusic: audio(data.nonDiegeticMusic),
+    ref: normalizeRef(data.ref),
   };
 }
 
@@ -437,6 +702,7 @@ function blankProject(id, name) {
     shots: createInitialShots().map(({ duration, description }) => ({ duration, description })),
     overallSoundscape: DEFAULT_AUDIO,
     nonDiegeticMusic: DEFAULT_AUDIO,
+    ref: blankRef(),
   };
 }
 
@@ -473,8 +739,8 @@ function buildProjectsStore(projects, activeId, settings) {
     version: 1,
     activeId,
     settings: normalizeSettings(settings),
-    projects: projects.map(({ id, name, mode, shots, overallSoundscape, nonDiegeticMusic }) => (
-      { id, name, mode, shots, overallSoundscape, nonDiegeticMusic }
+    projects: projects.map(({ id, name, mode, shots, overallSoundscape, nonDiegeticMusic, ref }) => (
+      { id, name, mode, shots, overallSoundscape, nonDiegeticMusic, ref: serializeRef(ref) }
     )),
   };
 }
@@ -545,7 +811,19 @@ function tagMatches(tag, query) {
 if (typeof module === 'object' && module.exports) {
   module.exports = {
     TIMESTAMP_RE,
+    BASE_MODES,
     PROMPT_MODES,
+    REF_TYPES,
+    RETENTION_MARKERS,
+    SUMMARY_TYPES,
+    markersFor,
+    blankRefItem,
+    blankRefFields,
+    blankRef,
+    normalizeRef,
+    serializeRef,
+    refLabels,
+    buildRefPrompt,
     KEYFRAME_ALIGNMENT,
     TIME_STEPS,
     formatTimestamp,
