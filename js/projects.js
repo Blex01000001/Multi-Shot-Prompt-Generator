@@ -17,13 +17,39 @@ function renderProjectUi() {
 // Show the active project's content (state.activeProjectId already points to it).
 function loadActiveProject() {
   const project = activeProject();
-  state.shots = withShotIds(project.shots);
-  state.overallSoundscape = project.overallSoundscape;
-  state.nonDiegeticMusic = project.nonDiegeticMusic;
+  const content = contentOf(project);
+  state.shots = withShotIds(content.shots);
+  state.overallSoundscape = content.overallSoundscape;
+  state.nonDiegeticMusic = content.nonDiegeticMusic;
+  state.mode = project.mode;
+  state.ref = refFieldsOf(project.ref);
   state.activeShotIndex = 0;
   syncAudioInputs();
+  syncSettingInputs();
   render(); // also saves
   renderProjectUi();
+}
+
+// Change the prompt mode of the active storyboard. i2va and t2va share their
+// shots; ref2va keeps its own shots / audio, so switching between the two
+// groups swaps the cards (nothing is lost: each side stays in the project).
+function setPromptMode(mode) {
+  if (!PROMPT_MODES.includes(mode)) return;
+  const switchContent = (mode === 'ref2va') !== (state.mode === 'ref2va');
+  syncActiveProject(); // keep the content of the mode being left
+  state.mode = mode;
+  const project = activeProject();
+  project.mode = mode;
+  if (switchContent) {
+    const content = contentOf(project);
+    state.shots = withShotIds(content.shots);
+    state.overallSoundscape = content.overallSoundscape;
+    state.nonDiegeticMusic = content.nonDiegeticMusic;
+    state.activeShotIndex = 0;
+    syncAudioInputs();
+  }
+  modeSelect.value = mode;
+  render(); // also saves
 }
 
 function switchProject(id) {

@@ -6,7 +6,7 @@
 
 - 先用下方檔案地圖選檔，再用 Grep 找函式、Read 只讀需要的行段；不要整檔讀 `index.html`、`core.js`、`tests/e2e/app.test.js`。
 - 每個 `js/*.js` 開頭的註解說明職責；細節以程式碼為準，這裡不重複。
-- 需要時才讀：`docs/TODO.md`（開始新工作或 commit 前）、`docs/FORMAT.md`（動到輸出格式、解析、localStorage、匯出匯入時）。
+- 需要時才讀：`docs/TODO.md`（開始新工作或 commit 前）、`docs/FORMAT.md`（動到輸出格式、解析、localStorage、匯出匯入時）、`docs/MULTIMODAL-SPEC.md`（動到 Ref2VA 時）。
 - 測試預設只印點與失敗細節；不要用 `test:verbose`，除非要查測試名稱。
 
 ## 檔案地圖
@@ -21,7 +21,8 @@
 | `js/shots.js` | 鏡頭卡片 HTML、`render()`／`refreshDerived()`、卡片操作、拖曳排序 |
 | `js/tags.js` | 標籤列表、標籤管理視窗 |
 | `js/paste.js` | 貼上 Prompt、卡片與音效卡片的貼上按鈕 |
-| `js/projects.js` | 多份分鏡切換／新增／改名／刪除、單份分鏡 JSON 匯出匯入 |
+| `js/projects.js` | 多份分鏡切換／新增／改名／刪除、單份分鏡 JSON 匯出匯入、`setPromptMode()` |
+| `js/ref.js` | 多模態參考（Ref2VA）編輯區：參考清單、summary、整體風格；規格見 `docs/MULTIMODAL-SPEC.md` |
 | `js/app.js` | 語言切換、複製、全域控制、啟動流程（最後載入） |
 | `tests/unit/` | Node 單元測試：`core`、`i18n` 一致性、`scripts`（全域名稱不重複、`core.js` 純度） |
 | `tests/e2e/` | `app.test.js` 瀏覽器測試、`screenshots.js` 截圖、`helpers.js` 伺服器與本機 CDN 路由 |

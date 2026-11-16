@@ -44,10 +44,30 @@ async function fillReadme(page) {
   await page.evaluate(() => window.scrollTo(0, 0));
 }
 
+// Multimodal reference (ref2va) mode with two references and a short story.
+async function fillRef(page) {
+  await page.selectOption('#mode-select', 'ref2va');
+  await page.click('[data-ref-add="Subject"]');
+  await page.locator('[data-ref-field="definition"]').nth(0).fill('is the young woman in <Picture 1>, with auburn hair and a grey knit sweater');
+  await page.locator('[data-ref-field="note"]').nth(0).fill('her face, hair and sweater are carried into every shot');
+  await page.click('[data-ref-add="Audio"]');
+  await page.locator('[data-ref-field="definition"]').nth(1).fill('is the voice-timbre reference for <Subject 1> (S1)');
+  await page.locator('[data-ref-field="note"]').nth(1).fill('timbre only, the signal is not copied');
+  await page.locator('[data-ref-field="marker"]').nth(1).selectOption('reference');
+  await page.locator('[data-summary-type="audio reference"]').click();
+  await page.fill('#summary-input', '<Subject 1> takes a book down and looks up toward the door.');
+  await page.fill('#style-input', 'The target video is in a warm, realistic style with soft practical lighting.');
+  await page.locator('textarea.shot-input').nth(0).fill('A medium-wide shot of <Subject 1> on a rolling ladder, drawing a clothbound book free.');
+  await page.locator('textarea.shot-input').nth(1).fill('A close-up of <Subject 1> at the counter, looking up toward the door.');
+  await page.evaluate(() => window.scrollTo(0, 0));
+}
+
 const SHOTS = [
   { name: 'desktop-en', viewport: DESKTOP, lang: 'en', setup: fillSample },
   { name: 'desktop-zh', viewport: DESKTOP, lang: 'zh-Hant', setup: fillSample },
   { name: 'desktop-ja', viewport: DESKTOP, lang: 'ja', setup: fillSample },
+  { name: 'desktop-en-ref2va', viewport: DESKTOP, lang: 'en', setup: fillRef },
+  { name: 'mobile-zh-ref2va', viewport: MOBILE, lang: 'zh-Hant', setup: fillRef, fullPage: true },
   { name: 'desktop-en-ts-error', viewport: DESKTOP, lang: 'en', setup: fillDurationError },
   { name: 'desktop-en-tag-manager', viewport: DESKTOP, lang: 'en', setup: page => page.click('#manage-tags-btn') },
   { name: 'desktop-en-lang-menu', viewport: DESKTOP, lang: 'en', setup: page => page.click('#lang-btn') },

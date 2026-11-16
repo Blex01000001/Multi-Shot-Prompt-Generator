@@ -32,7 +32,7 @@ function withShotIds(shots) {
   return shots.map(shot => ({ id: nextShotId++, ...shot }));
 }
 
-// Saved storyboards → { projects, activeId }, or null when nothing usable is saved.
+// Saved storyboards → { projects, activeId, settings }, or null when nothing usable is saved.
 function loadProjects() {
   try {
     const raw = localStorage.getItem(PROJECTS_STORAGE_KEY);
@@ -40,7 +40,7 @@ function loadProjects() {
     const legacy = localStorage.getItem(LEGACY_STORYBOARD_KEY);
     if (legacy !== null) {
       const board = parseStoryboard(JSON.parse(legacy));
-      return { projects: [{ ...board, id: 'p1', name: board.name || 'Storyboard 1' }], activeId: 'p1' };
+      return { projects: [{ ...board, id: 'p1', name: board.name || 'Storyboard 1' }], activeId: 'p1', settings: normalizeSettings(null) };
     }
   } catch (e) { /* storage unavailable or corrupted: start from the sample */ }
   return null;
@@ -50,19 +50,35 @@ function activeProject() {
   return state.projects.find(p => p.id === state.activeProjectId);
 }
 
-// Copy the live shots / soundscape / music into the active project.
+// The part of a project that holds the shots / audio for its current mode:
+// the project itself for i2va / t2va, project.ref for ref2va (each is kept apart).
+function contentOf(project, mode = project.mode) {
+  return mode === 'ref2va' ? project.ref : project;
+}
+
+// The ref2va fields edited live in state.ref (everything except shots / audio).
+function refFieldsOf(ref) {
+  const { shots, overallSoundscape, nonDiegeticMusic, ...fields } = ref;
+  return fields;
+}
+
+// Copy the live shots / soundscape / music (of the current mode) and the ref2va
+// fields into the active project.
 function syncActiveProject() {
   const project = activeProject();
   if (!project) return;
-  project.shots = state.shots.map(({ duration, description }) => ({ duration, description }));
-  project.overallSoundscape = state.overallSoundscape;
-  project.nonDiegeticMusic = state.nonDiegeticMusic;
+  project.mode = state.mode;
+  const content = contentOf(project, state.mode);
+  content.shots = state.shots.map(({ duration, description }) => ({ duration, description }));
+  content.overallSoundscape = state.overallSoundscape;
+  content.nonDiegeticMusic = state.nonDiegeticMusic;
+  project.ref = { ...project.ref, ...state.ref };
 }
 
 function saveStoryboard() {
   syncActiveProject();
   try {
-    localStorage.setItem(PROJECTS_STORAGE_KEY, JSON.stringify(buildProjectsStore(state.projects, state.activeProjectId)));
+    localStorage.setItem(PROJECTS_STORAGE_KEY, JSON.stringify(buildProjectsStore(state.projects, state.activeProjectId, state)));
     localStorage.removeItem(LEGACY_STORYBOARD_KEY);
   } catch (e) { /* ignore */ }
 }
@@ -85,19 +101,24 @@ function dateStamp() {
   return new Date().toISOString().slice(0, 10).replace(/-/g, '');
 }
 
-const savedProjects = loadProjects() || { projects: [blankProject('p1', 'Storyboard 1')], activeId: 'p1' };
+const savedProjects = loadProjects() ||
+  { projects: [blankProject('p1', 'Storyboard 1')], activeId: 'p1', settings: normalizeSettings(null) };
 const startProject = savedProjects.projects.find(p => p.id === savedProjects.activeId);
 
-// shots / overallSoundscape / nonDiegeticMusic hold the active storyboard.
+// shots / overallSoundscape / nonDiegeticMusic / mode / ref hold the active storyboard
+// (the shots and audio of the current mode; ref = the ref2va fields);
+// timeStepSec / autoPeriod are settings saved with all storyboards.
 const state = {
   tags: loadTags(),
   projects: savedProjects.projects,
   activeProjectId: savedProjects.activeId,
-  shots: withShotIds(startProject.shots),
-  overallSoundscape: startProject.overallSoundscape,
-  nonDiegeticMusic: startProject.nonDiegeticMusic,
-  timeStepSec: 1,
-  autoPeriod: true,
+  shots: withShotIds(contentOf(startProject).shots),
+  overallSoundscape: contentOf(startProject).overallSoundscape,
+  nonDiegeticMusic: contentOf(startProject).nonDiegeticMusic,
+  ref: refFieldsOf(startProject.ref),
+  timeStepSec: savedProjects.settings.timeStepSec,
+  autoPeriod: savedProjects.settings.autoPeriod,
+  mode: startProject.mode, // 'i2va' | 't2va' | 'ref2va' (see buildPrompt)
   activeShotIndex: 0,
 };
 
@@ -134,6 +155,18 @@ const soundscapeInput = $('soundscape-input');
 const musicInput = $('music-input');
 const timeStepSelect = $('time-step-select');
 const autoPeriodCheck = $('auto-period-check');
+const modeSelect = $('mode-select');
+
+// Multimodal reference (ref2va) editor
+const refSectionsEl = $('ref-sections');
+const refListEl = $('ref-list');
+const summaryTypesEl = $('summary-types');
+const summaryInput = $('summary-input');
+const retentionFreeCheck = $('retention-free-check');
+const retentionFreeInput = $('retention-free-input');
+const refStyleWrapEl = $('ref-style-wrap');
+const styleInput = $('style-input');
+const shotsFieldNameEl = $('shots-field-name');
 const copyBtn = $('copy-btn');
 const copyText = $('copy-text');
 const resetBtn = $('reset-btn');

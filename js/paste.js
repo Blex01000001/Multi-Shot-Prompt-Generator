@@ -47,13 +47,18 @@ function closePasteModal() {
 async function importPromptText(text) {
   const result = parsePrompt(text, state.timeStepSec);
   if (!result) return 'none';
-  if (hasShotContent(state)) {
+  // The cards that would be replaced: the live ones, or the other format's saved ones.
+  const intoRef = result.mode === 'ref2va';
+  const target = intoRef === (state.mode === 'ref2va') ? state : contentOf(activeProject(), result.mode);
+  if (hasShotContent(target)) {
     const ok = await showConfirm({ title: t('confirmTitle'), message: t('confirmReplace'), ok: t('replace') });
     if (!ok) return 'cancelled';
   }
+  setPromptMode(result.mode); // swaps in the other format's cards when needed
   state.shots = withShotIds(result.shots);
   state.overallSoundscape = result.overallSoundscape;
   state.nonDiegeticMusic = result.nonDiegeticMusic;
+  if (intoRef) state.ref = { ...blankRefFields(), ...result.ref };
   state.activeShotIndex = 0;
   syncAudioInputs();
   render();

@@ -33,7 +33,7 @@ test.afterEach(async () => {
 });
 
 const output = (page) => page.locator('#output-preview').textContent();
-const firstLine = async (page) => (await output(page)).split('\n')[0];
+const firstLine = async (page) => (await output(page)).split('\n').find(l => l.startsWith('integrated_multimodal_description:')); // skips the keyframe sentence in I2VA mode
 const descriptions = (page) => page.locator('textarea.shot-input');
 const descriptionValues = (page) => descriptions(page).evaluateAll(els => els.map(e => e.value));
 const durations = (page) => page.locator('.dur-input');
@@ -64,6 +64,23 @@ test('empty shots are skipped, renumbered and left out of the timeline', async (
   assert.equal(await page.locator('.shot-card').nth(1).locator('.shot-skip').isVisible(), true);
   assert.equal(await page.textContent('#exported-count'), '(2 in output)');
 });
+test('prompt mode: I2VA adds the keyframe sentence, T2VA leaves it out', async () => {
+  const { page } = await open();
+  await descriptions(page).nth(0).fill('a girl smiles');
+  assert.equal(await page.locator('#mode-select').inputValue(), 'i2va');
+  const i2va = (await output(page)).split('\n');
+  assert.match(i2va[0], /^For the target video, at 0\.00 seconds .* <Picture 1> \(from \[Shot 1\]\) is fully referenced\.$/);
+  assert.equal(i2va[1], '');
+  await page.selectOption('#mode-select', 't2va');
+  assert.match((await output(page)).split('\n')[0], /^integrated_multimodal_description: \[Shot 1\] At 00:00\.000, a girl smiles\.$/);
+  assert.ok(!(await output(page)).includes('<Picture 1>'));
+  await page.selectOption('#mode-select', 'i2va');
+  assert.ok((await output(page)).startsWith('For the target video'));
+  await page.click('#lang-btn');
+  await page.click('[data-lang="zh-Hant"]');
+  assert.match(await page.locator('#mode-select option[value="t2va"]').textContent(), /文生影片/);
+});
+
 test('durations set the start times; invalid ones are highlighted and tidied on blur', async () => {
   const { page } = await open();
   await page.click('#add-shot-btn');
@@ -233,6 +250,89 @@ test('storyboard is saved to localStorage and restored after reload', async () =
   assert.equal(await descriptions(page).nth(0).inputValue(), '');
 });
 
+test('default duration, auto period and prompt mode are saved and restored', async () => {
+  const { page } = await open();
+  await page.selectOption('#time-step-select', '2');
+  await page.uncheck('#auto-period-check');
+  await page.selectOption('#mode-select', 't2va');
+  await page.reload();
+  await page.waitForSelector('.shot-card');
+  assert.equal(await page.locator('#time-step-select').inputValue(), '2');
+  assert.equal(await page.locator('#auto-period-check').isChecked(), false);
+  assert.equal(await page.locator('#mode-select').inputValue(), 't2va');
+  assert.ok((await output(page)).startsWith('integrated_multimodal_description:'));
+  await page.click('#add-shot-btn');
+  assert.equal((await durationValues(page)).at(-1), '2.0');
+});
+
+test('ref2va: own shots, reference list with computed appears-in, saved and restored', async () => {
+  const { page } = await open();
+  await descriptions(page).nth(0).fill('base shot');
+  assert.equal(await page.locator('#ref-sections').isVisible(), false);
+  await page.selectOption('#mode-select', 'ref2va');
+  assert.equal(await page.locator('#ref-sections').isVisible(), true);
+  assert.equal(await page.textContent('#shots-field-name'), 'detailed_description');
+  assert.deepEqual(await descriptionValues(page), ['', '']); // the base shots are kept apart
+  await page.click('[data-ref-add="Subject"]');
+  await page.locator('[data-ref-field="definition"]').fill('is the woman in <Picture 1>');
+  await page.locator('[data-ref-field="note"]').fill('face kept');
+  await page.click('[data-ref-add="Audio"]');
+  assert.deepEqual(await page.locator('.ref-label').allTextContents(), ['<Subject 1>', '<Audio 1>']);
+  assert.deepEqual(await page.locator('.ref-item').nth(1).locator('[data-ref-field="marker"] option').allTextContents(),
+    ['fully_copy', 'partially_copy', 'reference', 'weak_reference']);
+  await page.fill('#style-input', 'A warm style.');
+  await page.locator('[data-summary-type="video editing"]').click();
+  await page.fill('#summary-input', 'She reads.');
+  await descriptions(page).nth(0).fill('first');
+  await page.click('.ref-item >> nth=0 >> [data-ref-action="insert"]');
+  await descriptions(page).nth(1).fill('second');
+  const out = await output(page);
+  assert.match(out, /^subject_definitions:\n<Subject 1> is the woman in <Picture 1>\n/);
+  assert.match(out, /\nsummary:\n\[reference generation \+ video editing\] She reads\.\n/);
+  assert.match(out, /<Subject 1> \(appears in \[Shot 1\]\): fully_preserved - face kept\n<Audio 1>: fully_copy\n/);
+  assert.match(out, /\ndetailed_description:\nA warm style\.\n\[Shot 1\] first <Subject 1>\.\n\[Shot 2\] At 00:01\.000, second\.\n/);
+
+  await page.reload();
+  await page.waitForSelector('.shot-card');
+  assert.equal(await page.locator('#mode-select').inputValue(), 'ref2va');
+  assert.deepEqual(await page.locator('.ref-label').allTextContents(), ['<Subject 1>', '<Audio 1>']);
+  assert.equal(await page.inputValue('#style-input'), 'A warm style.');
+
+  await page.selectOption('#mode-select', 'i2va');
+  assert.deepEqual(await descriptionValues(page), ['base shot', '']);
+  assert.equal(await page.locator('#ref-sections').isVisible(), false);
+  await page.selectOption('#mode-select', 'ref2va');
+  assert.deepEqual(await descriptionValues(page), ['first <Subject 1>', 'second']);
+
+  // free-text retention
+  await page.check('#retention-free-check');
+  await page.fill('#retention-free-input', 'Keep her face.');
+  assert.match(await output(page), /\nretention_analysis:\nKeep her face\.\n\ndetailed_description:/);
+  // deleting a reference renumbers the rest
+  await page.click('.ref-item >> nth=0 >> [data-ref-action="delete"]');
+  assert.deepEqual(await page.locator('.ref-label').allTextContents(), ['<Audio 1>']);
+});
+
+test('paste prompt: a ref2va prompt switches the mode and fills the reference fields', async () => {
+  const { page, context } = await open();
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+  const text = ['subject_definitions:', '<Subject 1> is the woman in <Picture 1>.', '',
+    'summary:', '[reference generation + audio reference] She reads.', '',
+    'retention_analysis:', '<Subject 1> (appears in [Shot 1]): partially_preserved - face only.', '',
+    'detailed_description:', 'A warm style.', '[Shot 1] <Subject 1> reads.', '[Shot 2] At 00:02.000, she looks up.', '',
+    'overall_soundscape:', 'room tone', '', 'non_diegetic_music:', 'N/A'].join('\n');
+  await page.evaluate((t) => navigator.clipboard.writeText(t), text);
+  await page.click('#paste-prompt-btn');
+  await page.waitForFunction(() => document.querySelector('#mode-select').value === 'ref2va');
+  assert.deepEqual(await descriptionValues(page), ['<Subject 1> reads.', 'she looks up.']);
+  assert.deepEqual(await durationValues(page), ['2.0', '1.0']);
+  assert.equal(await page.inputValue('#style-input'), 'A warm style.');
+  assert.equal(await page.locator('[data-ref-field="marker"]').inputValue(), 'partially_preserved');
+  assert.equal(await page.inputValue('#summary-input'), 'She reads.');
+  assert.equal(await page.locator('[data-summary-type="audio reference"]').getAttribute('aria-pressed'), 'true');
+  assert.equal(await output(page), text);
+});
+
 test('a corrupted saved storyboard falls back to the blank sample', async () => {
   const { page } = await open({ storage: { 'msp-projects': '{oops' } });
   assert.equal(await descriptions(page).count(), 2);
@@ -357,6 +457,22 @@ test('paste prompt: empty cards are replaced without asking', async () => {
   assert.equal(await page.inputValue('#soundscape-input'), 'light rain');
   assert.equal(await page.inputValue('#music-input'), 'N/A');
   assert.match(await firstLine(page), /behind her\. \[Shot 2\] At 00:01\.000, The girl bent down/);
+});
+
+test('paste prompt: switches the prompt mode by the alignment sentence', async () => {
+  const { page, context } = await open();
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+  assert.equal(await page.locator('#mode-select').inputValue(), 'i2va');
+  await page.evaluate((text) => navigator.clipboard.writeText(text), '[Shot 1] At 00:00.000, one. [Shot 2] At 00:01.000, two.');
+  await page.click('#paste-prompt-btn');
+  await page.waitForFunction(() => document.querySelectorAll('textarea.shot-input').length === 2 && document.querySelector('textarea.shot-input').value === 'one.');
+  assert.equal(await page.locator('#mode-select').inputValue(), 't2va');
+  await page.evaluate((text) => navigator.clipboard.writeText(text),
+    'For the target video, at 0.00 seconds into the target video, <Picture 1> (from [Shot 1]) is fully referenced.\n\nintegrated_multimodal_description: [Shot 1] At 00:00.000, three.');
+  await page.click('#paste-prompt-btn');
+  await page.click('#confirm-ok');
+  await page.waitForFunction(() => document.querySelector('textarea.shot-input').value === 'three.');
+  assert.equal(await page.locator('#mode-select').inputValue(), 'i2va');
 });
 
 test('paste prompt: asks before replacing existing content', async () => {

@@ -115,6 +115,16 @@
           </div>
 
           <div>
+            <label for="mode-select" data-i18n="modeLabel" class="block text-xs sm:text-sm font-semibold text-slate-300 mb-1.5">Prompt mode</label>
+            <select id="mode-select" class="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-3.5 py-2 text-xs sm:text-sm font-medium text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+              <option value="i2va" data-i18n="modeI2va">Image to video (I2VA)</option>
+              <option value="t2va" data-i18n="modeT2va">Text to video (T2VA)</option>
+              <option value="ref2va" data-i18n="modeRef2va">Multimodal reference (Ref2VA)</option>
+            </select>
+            <p data-i18n="modeHint" class="mt-1.5 text-xs sm:text-sm text-slate-400">I2VA adds the keyframe sentence for the input image; T2VA leaves it out.</p>
+          </div>
+
+          <div>
             <span data-i18n="autoFormat" class="block text-xs sm:text-sm font-semibold text-slate-300 mb-1.5">Auto formatting</span>
             <div class="flex items-center gap-2.5 pt-1.5">
               <input type="checkbox" id="auto-period-check" checked class="w-4 h-4 rounded bg-slate-900 border-slate-700 text-indigo-600 focus:ring-indigo-500 focus:ring-offset-slate-900">
@@ -154,12 +164,55 @@
         </div>
       </div>
 
+      <!-- Ref2VA only: subject_definitions + retention_analysis (one card per reference) and summary -->
+      <div id="ref-sections" class="hidden flex flex-col gap-5">
+        <div class="glass-panel rounded-2xl p-4 border border-slate-800">
+          <div class="pb-3.5 mb-3.5 border-b border-slate-800/80 flex flex-col items-start gap-1">
+            <span class="px-2.5 py-1.5 rounded-lg border font-mono text-xs sm:text-sm font-bold bg-purple-500/10 border-purple-500/30 text-purple-300 break-all">subject_definitions + retention_analysis</span>
+            <span data-i18n="refCardHint" class="pl-0.5 text-xs sm:text-sm text-slate-400">(reference labels and how each one is kept; "appears in" is filled in from the shots)</span>
+          </div>
+          <div id="ref-list" class="space-y-3"></div>
+          <div class="mt-3 flex flex-wrap items-center gap-2">
+            <span data-i18n="refAddLabel" class="text-xs sm:text-sm text-slate-400">Add:</span>
+            <button type="button" data-ref-add="Subject" class="px-3 py-1.5 rounded-lg border border-slate-700/80 bg-slate-900 hover:border-indigo-500/60 text-xs sm:text-sm font-mono text-slate-200 transition-all">+ Subject</button>
+            <button type="button" data-ref-add="Picture" class="px-3 py-1.5 rounded-lg border border-slate-700/80 bg-slate-900 hover:border-indigo-500/60 text-xs sm:text-sm font-mono text-slate-200 transition-all">+ Picture</button>
+            <button type="button" data-ref-add="Video" class="px-3 py-1.5 rounded-lg border border-slate-700/80 bg-slate-900 hover:border-indigo-500/60 text-xs sm:text-sm font-mono text-slate-200 transition-all">+ Video</button>
+            <button type="button" data-ref-add="Audio" class="px-3 py-1.5 rounded-lg border border-slate-700/80 bg-slate-900 hover:border-indigo-500/60 text-xs sm:text-sm font-mono text-slate-200 transition-all">+ Audio</button>
+          </div>
+          <div class="mt-4 pt-3 border-t border-slate-800/80">
+            <div class="flex items-center gap-2.5">
+              <input type="checkbox" id="retention-free-check" class="w-4 h-4 rounded bg-slate-900 border-slate-700 text-indigo-600 focus:ring-indigo-500 focus:ring-offset-slate-900">
+              <label for="retention-free-check" data-i18n="refRetentionFree" class="text-xs sm:text-sm text-slate-300 cursor-pointer select-none font-medium">Write retention_analysis as free text</label>
+            </div>
+            <textarea id="retention-free-input" rows="4" spellcheck="false" data-i18n-placeholder="refRetentionFreePlaceholder" placeholder="Retain the face from <Picture 1>. …"
+              class="hidden mt-2 w-full block bg-slate-950/80 border border-slate-800 focus:border-indigo-500/80 rounded-xl p-3 text-xs sm:text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-indigo-500/50 resize-y font-sans leading-relaxed"></textarea>
+          </div>
+        </div>
+
+        <div class="glass-panel rounded-2xl p-4 border border-slate-800">
+          <div class="pb-3.5 mb-3.5 border-b border-slate-800/80 flex flex-col items-start gap-1">
+            <label for="summary-input" class="px-2.5 py-1.5 rounded-lg border font-mono text-xs sm:text-sm font-bold bg-purple-500/10 border-purple-500/30 text-purple-300 break-all">summary</label>
+            <span data-i18n="summaryHint" class="pl-0.5 text-xs sm:text-sm text-slate-400">(task types in brackets, then one short paragraph)</span>
+          </div>
+          <div id="summary-types" class="flex flex-wrap gap-2"></div>
+          <textarea id="summary-input" rows="3" spellcheck="false" data-i18n-placeholder="summaryPlaceholder" placeholder="<Subject 1> takes a book from the shelf …"
+            class="mt-3 w-full block bg-slate-950/80 border border-slate-800 focus:border-indigo-500/80 rounded-xl p-3 text-xs sm:text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-indigo-500/50 resize-y font-sans leading-relaxed"></textarea>
+        </div>
+      </div>
+
       <!-- integrated_multimodal_description: the shot cards, framed with a title -->
       <div class="rounded-2xl border border-slate-700/60 bg-slate-900/30 p-2 sm:p-3">
         <h2 class="px-1 mb-3 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-          <span class="font-mono text-sm sm:text-base font-bold text-indigo-300 break-all">integrated_multimodal_description</span>
+          <span id="shots-field-name" class="font-mono text-sm sm:text-base font-bold text-indigo-300 break-all">integrated_multimodal_description</span>
           <span data-i18n="shotsFieldHint" class="text-xs sm:text-sm text-slate-400">(shot descriptions)</span>
         </h2>
+
+        <!-- Ref2VA only: one style sentence before [Shot 1] -->
+        <div id="ref-style-wrap" class="hidden mb-3">
+          <label for="style-input" data-i18n="styleLabel" class="block px-1 mb-1.5 text-xs sm:text-sm font-semibold text-slate-300">Overall style (1–2 sentences, written before [Shot 1])</label>
+          <textarea id="style-input" rows="2" spellcheck="false" data-i18n-placeholder="stylePlaceholder" placeholder="The target video is in a warm, realistic style with soft practical lighting."
+            class="w-full block bg-slate-950/80 border border-slate-800 focus:border-indigo-500/80 rounded-xl p-3 text-xs sm:text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-indigo-500/50 resize-y font-sans leading-relaxed"></textarea>
+        </div>
 
         <!-- Shots Container -->
         <div class="space-y-4" id="shots-list">
@@ -398,6 +451,7 @@
   <script src="js/tags.js"></script>
   <script src="js/paste.js"></script>
   <script src="js/projects.js"></script>
+  <script src="js/ref.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

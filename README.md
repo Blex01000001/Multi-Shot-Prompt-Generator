@@ -20,12 +20,16 @@ No sign-up, no install. It runs entirely in your browser.
 ## Output format
 
 ```
+For the target video, at 0.00 seconds into the target video, <Picture 1> (from [Shot 1]) is fully referenced.
+
 integrated_multimodal_description: [Shot 1] At 00:00.000, a girl turns toward the camera and smiles. [Shot 2] At 00:01.000, camera slowly pushes in, low-angle shot looking up.
 
 overall_soundscape: gentle wind, distant city ambience
 non_diegetic_music: N/A
 ```
 
+- **Multimodal reference (Ref2VA)** mode writes the six-section format (`subject_definitions`, `summary`, `retention_analysis`, `detailed_description`, …) with a reference list and keeps its own shots.
+- The first line is the keyframe sentence for the input image (**Image to video, I2VA**). Choose **Text to video (T2VA)** under *Prompt mode* to leave it out.
 - Timestamps use `MM:SS.mmm`.
 - Shots with an empty description are left out, and the remaining shots are renumbered.
 - Each `At` time is calculated from the durations you enter: the first shot starts at `00:00.000`,
