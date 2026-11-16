@@ -14,11 +14,11 @@
    - `summary` 前綴 6 個值（含 `keyframe completion`）、多選、` + ` 串接、不可重複、預設 `reference generation`。
    - 社群寫法（`retention_analysis` 整段自由文字）以「自由文字模式」備案；插入按鈕含 `<d>[Language] …</d>`；`parsePrompt()` 要能辨識兩種格式。
    - 現有格式已補官方 I2VA 關鍵幀對齊句；FL2VA／L2VA（首尾幀）目前不支援。
-   - Base 家族（T2VA／I2VA／FL2VA／L2VA）只差最前面的對齊句：T2VA 不加，I2VA 單圖首幀（現況，永遠輸出），FL2VA 首尾幀、L2VA 尾幀各有不同句型（見 `docs/MULTIMODAL-SPEC.md` 末段與官方 `base-en.txt`）。計畫在 Base 格式內加「模式」下拉（先 T2VA／I2VA，再擴充），與 Ref2VA 一起規劃；屬輸出格式變更，動手前要先問。
+   - Base 家族（T2VA／I2VA／FL2VA／L2VA）只差最前面的對齊句：T2VA 不加，I2VA 單圖首幀（現況），FL2VA 首尾幀、L2VA 尾幀各有不同句型（見 `docs/MULTIMODAL-SPEC.md` 末段與官方 `base-en.txt`）。Base 內的 T2VA／I2VA「Prompt 模式」下拉已做；FL2VA／L2VA 之後再擴充（需要首尾幀圖片欄位），與 Ref2VA 一起規劃；屬輸出格式變更，動手前要先問。
 
 ## 已知問題／限制
 
-- 「預設持續時間」與「自動格式優化」不會保存，重新整理後回到預設。
+- 「預設持續時間」、「自動格式優化」與「Prompt 模式」不會保存，重新整理後回到預設。
 - 分鏡名稱可重複；沒有分鏡數量上限（全存在 localStorage，約 5MB 上限）。
 - 手機上鏡頭卡片的持續時間框和微調按鈕分成兩列（外框讓寬度少了幾 px），卡片較高。
 - 桌機卡片右上已有 6 個按鈕（上、下、貼上、複製、刪除、拖曳），標題列幾乎沒有空間再加按鈕；要加的話考慮「更多」選單。

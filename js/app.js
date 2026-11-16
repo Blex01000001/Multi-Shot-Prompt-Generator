@@ -161,6 +161,12 @@ function initGlobalControls() {
     state.timeStepSec = parseFloat(e.target.value);
   });
 
+  modeSelect.addEventListener('change', (e) => {
+    if (!PROMPT_MODES.includes(e.target.value)) return;
+    state.mode = e.target.value;
+    refreshDerived();
+  });
+
   autoPeriodCheck.addEventListener('change', (e) => {
     state.autoPeriod = e.target.checked;
     refreshDerived();

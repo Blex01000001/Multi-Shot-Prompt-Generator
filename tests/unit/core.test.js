@@ -44,6 +44,14 @@ test('buildPrompt: starts with the I2VA keyframe alignment line and one blank li
     'For the target video, at 0.00 seconds into the target video, <Picture 1> (from [Shot 1]) is fully referenced.');
   assert.ok(out.startsWith(core.KEYFRAME_ALIGNMENT + '\n\nintegrated_multimodal_description: '));
 });
+test('buildPrompt: t2va mode leaves out the alignment sentence; unknown mode behaves like i2va', () => {
+  const input = { shots: [shot('1.0', 'x')], autoPeriod: true };
+  const t2va = core.buildPrompt({ ...input, mode: 't2va' });
+  assert.ok(t2va.startsWith('integrated_multimodal_description: [Shot 1] At 00:00.000, x.'));
+  assert.ok(!t2va.includes('<Picture 1>'));
+  assert.equal(core.buildPrompt({ ...input, mode: 'i2va' }), core.buildPrompt(input));
+  assert.deepEqual(core.parsePrompt(t2va, 1).shots.map(s => s.description), ['x.']);
+});
 test('buildPrompt: autoPeriod off leaves text untouched', () => {
   const out = core.buildPrompt({ shots: [shot('1.0', 'no period')], autoPeriod: false });
   assert.match(out, /At 00:00\.000, no period\n/);

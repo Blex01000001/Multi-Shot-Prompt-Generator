@@ -98,6 +98,7 @@ const state = {
   nonDiegeticMusic: startProject.nonDiegeticMusic,
   timeStepSec: 1,
   autoPeriod: true,
+  mode: 'i2va', // 'i2va' | 't2va' (see buildPrompt); not saved
   activeShotIndex: 0,
 };
 
@@ -134,6 +135,7 @@ const soundscapeInput = $('soundscape-input');
 const musicInput = $('music-input');
 const timeStepSelect = $('time-step-select');
 const autoPeriodCheck = $('auto-period-check');
+const modeSelect = $('mode-select');
 const copyBtn = $('copy-btn');
 const copyText = $('copy-text');
 const resetBtn = $('reset-btn');

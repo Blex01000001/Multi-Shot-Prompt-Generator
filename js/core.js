@@ -170,17 +170,20 @@ function totalDuration(shots) {
   ), 0);
 }
 
-// Build the MiniMax H3 prompt (I2VA). See docs/FORMAT.md — do not change the
+// Build the MiniMax H3 prompt. See docs/FORMAT.md — do not change the
 // format without asking the user.
-//   <KEYFRAME_ALIGNMENT line>
+// `mode`: 'i2va' (default) starts with the keyframe alignment sentence and a
+// blank line; 't2va' (text only, no input image) leaves both out.
+//   <KEYFRAME_ALIGNMENT line>   (i2va only)
 //
 //   integrated_multimodal_description: [Shot 1] At 00:00.000, text. [Shot 2] ...
 //
 //   overall_soundscape: ...
 //   non_diegetic_music: ...
+const PROMPT_MODES = ['i2va', 't2va'];
 const KEYFRAME_ALIGNMENT = 'For the target video, at 0.00 seconds into the target video, <Picture 1> (from [Shot 1]) is fully referenced.';
 
-function buildPrompt({ shots, autoPeriod, overallSoundscape, nonDiegeticMusic }) {
+function buildPrompt({ shots, autoPeriod, overallSoundscape, nonDiegeticMusic, mode = 'i2va' }) {
   const parts = [];
   const analysis = analyzeShots(shots);
 
@@ -198,7 +201,8 @@ function buildPrompt({ shots, autoPeriod, overallSoundscape, nonDiegeticMusic })
   const soundscape = (overallSoundscape || '').trim() || DEFAULT_AUDIO;
   const music = (nonDiegeticMusic || '').trim() || DEFAULT_AUDIO;
 
-  return `${KEYFRAME_ALIGNMENT}\n\nintegrated_multimodal_description: ${parts.join(' ')}\n\noverall_soundscape: ${soundscape}\nnon_diegetic_music: ${music}`;
+  const intro = mode === 't2va' ? '' : `${KEYFRAME_ALIGNMENT}\n\n`;
+  return `${intro}integrated_multimodal_description: ${parts.join(' ')}\n\noverall_soundscape: ${soundscape}\nnon_diegetic_music: ${music}`;
 }
 
 // -----------------------------------------------------------------------------
@@ -519,6 +523,7 @@ function tagMatches(tag, query) {
 if (typeof module === 'object' && module.exports) {
   module.exports = {
     TIMESTAMP_RE,
+    PROMPT_MODES,
     KEYFRAME_ALIGNMENT,
     TIME_STEPS,
     formatTimestamp,

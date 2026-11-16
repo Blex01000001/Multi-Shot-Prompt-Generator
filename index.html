@@ -115,6 +115,15 @@
           </div>
 
           <div>
+            <label for="mode-select" data-i18n="modeLabel" class="block text-xs sm:text-sm font-semibold text-slate-300 mb-1.5">Prompt mode</label>
+            <select id="mode-select" class="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-3.5 py-2 text-xs sm:text-sm font-medium text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+              <option value="i2va" data-i18n="modeI2va">Image to video (I2VA)</option>
+              <option value="t2va" data-i18n="modeT2va">Text to video (T2VA)</option>
+            </select>
+            <p data-i18n="modeHint" class="mt-1.5 text-xs sm:text-sm text-slate-400">I2VA adds the keyframe sentence for the input image; T2VA leaves it out.</p>
+          </div>
+
+          <div>
             <span data-i18n="autoFormat" class="block text-xs sm:text-sm font-semibold text-slate-300 mb-1.5">Auto formatting</span>
             <div class="flex items-center gap-2.5 pt-1.5">
               <input type="checkbox" id="auto-period-check" checked class="w-4 h-4 rounded bg-slate-900 border-slate-700 text-indigo-600 focus:ring-indigo-500 focus:ring-offset-slate-900">

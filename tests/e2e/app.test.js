@@ -64,6 +64,23 @@ test('empty shots are skipped, renumbered and left out of the timeline', async (
   assert.equal(await page.locator('.shot-card').nth(1).locator('.shot-skip').isVisible(), true);
   assert.equal(await page.textContent('#exported-count'), '(2 in output)');
 });
+test('prompt mode: I2VA adds the keyframe sentence, T2VA leaves it out', async () => {
+  const { page } = await open();
+  await descriptions(page).nth(0).fill('a girl smiles');
+  assert.equal(await page.locator('#mode-select').inputValue(), 'i2va');
+  const i2va = (await output(page)).split('\n');
+  assert.match(i2va[0], /^For the target video, at 0\.00 seconds .* <Picture 1> \(from \[Shot 1\]\) is fully referenced\.$/);
+  assert.equal(i2va[1], '');
+  await page.selectOption('#mode-select', 't2va');
+  assert.match((await output(page)).split('\n')[0], /^integrated_multimodal_description: \[Shot 1\] At 00:00\.000, a girl smiles\.$/);
+  assert.ok(!(await output(page)).includes('<Picture 1>'));
+  await page.selectOption('#mode-select', 'i2va');
+  assert.ok((await output(page)).startsWith('For the target video'));
+  await page.click('#lang-btn');
+  await page.click('[data-lang="zh-Hant"]');
+  assert.match(await page.locator('#mode-select option[value="t2va"]').textContent(), /文生影片/);
+});
+
 test('durations set the start times; invalid ones are highlighted and tidied on blur', async () => {
   const { page } = await open();
   await page.click('#add-shot-btn');
