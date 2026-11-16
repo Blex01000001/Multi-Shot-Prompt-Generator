@@ -321,7 +321,9 @@ test('moveShotTo: reorders (durations move along), active follows its shot, out 
 // ---------------------------------------------------------------------------
 const parsed = (text, last) => {
   const r = core.parsePrompt(text, last);
-  return r && { ...r, shots: r.shots.map(s => `${s.duration} ${s.description}`) };
+  if (!r) return r;
+  const { mode, ...rest } = r; // the mode has its own test
+  return { ...rest, shots: r.shots.map(s => `${s.duration} ${s.description}`) };
 };
 
 test('parsePrompt: reads the example pasted by the user (no space between shots)', () => {
@@ -349,6 +351,16 @@ test('parsePrompt: round-trips buildPrompt output', () => {
   assert.deepEqual(r.shots, input.shots.map(({ duration, description }) => ({ duration, description })));
   assert.equal(r.overallSoundscape, 'rain on a window');
   assert.equal(r.nonDiegeticMusic, 'soft piano');
+});
+
+test('parsePrompt: mode is i2va with the alignment sentence, t2va without', () => {
+  const body = '[Shot 1] At 00:00.000, one.';
+  assert.equal(core.parsePrompt('integrated_multimodal_description: ' + body).mode, 't2va');
+  assert.equal(core.parsePrompt(core.KEYFRAME_ALIGNMENT + '\n\nintegrated_multimodal_description: ' + body).mode, 'i2va');
+  assert.equal(core.parsePrompt('How the reference pictures align with the target video — Picture 1 (from Shot 1) aligns with the 0.00-second mark of the target video.\n\n' + body).mode, 'i2va');
+  for (const mode of core.PROMPT_MODES) {
+    assert.equal(core.parsePrompt(core.buildPrompt({ shots: [shot('1.0', 'x')], autoPeriod: true, mode })).mode, mode);
+  }
 });
 
 test('parsePrompt: ignores the keyframe alignment line, with or without field names', () => {

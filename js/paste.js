@@ -54,6 +54,8 @@ async function importPromptText(text) {
   state.shots = withShotIds(result.shots);
   state.overallSoundscape = result.overallSoundscape;
   state.nonDiegeticMusic = result.nonDiegeticMusic;
+  state.mode = result.mode;
+  modeSelect.value = state.mode;
   state.activeShotIndex = 0;
   syncAudioInputs();
   render();

@@ -214,8 +214,10 @@ function buildPrompt({ shots, autoPeriod, overallSoundscape, nonDiegeticMusic, m
 // `lastDurationSec`. A gap that is not positive (or an unreadable time) gives
 // an invalid duration so the card shows the error.
 // Returns { shots: [{ duration, description }], overallSoundscape,
-// nonDiegeticMusic }, or null when no "[Shot N] At ..." is found.
+// nonDiegeticMusic, mode }, or null when no "[Shot N] At ..." is found.
+// mode is 'i2va' when the text has the keyframe alignment sentence, else 't2va'.
 // -----------------------------------------------------------------------------
+const ALIGNMENT_RE = /seconds into the target video|reference pictures align with the target video/i;
 const PROMPT_FIELD_RE = /(integrated_multimodal_description|overall_soundscape|non_diegetic_music)\s*:/gi;
 const SHOT_MARK_RE = /\[\s*shot\s*\d*\s*\]\s*at\s+([0-9:.]+)\s*,?/gi;
 
@@ -267,7 +269,12 @@ function parsePrompt(text, lastDurationSec = 1) {
     return { duration, description: collapseSpaces(source.slice(m.index + m[0].length, end)) };
   });
   const audio = (name) => collapseSpaces(fields[name] || '') || DEFAULT_AUDIO;
-  return { shots, overallSoundscape: audio('overall_soundscape'), nonDiegeticMusic: audio('non_diegetic_music') };
+  return {
+    shots,
+    overallSoundscape: audio('overall_soundscape'),
+    nonDiegeticMusic: audio('non_diegetic_music'),
+    mode: ALIGNMENT_RE.test(clean) ? 'i2va' : 't2va',
+  };
 }
 
 // True when the user has typed anything that a paste / import would overwrite.

@@ -33,7 +33,7 @@ test.afterEach(async () => {
 });
 
 const output = (page) => page.locator('#output-preview').textContent();
-const firstLine = async (page) => (await output(page)).split('\n')[2]; // the integrated_multimodal_description line (line 0 is the keyframe alignment sentence)
+const firstLine = async (page) => (await output(page)).split('\n').find(l => l.startsWith('integrated_multimodal_description:')); // skips the keyframe sentence in I2VA mode
 const descriptions = (page) => page.locator('textarea.shot-input');
 const descriptionValues = (page) => descriptions(page).evaluateAll(els => els.map(e => e.value));
 const durations = (page) => page.locator('.dur-input');
@@ -389,6 +389,22 @@ test('paste prompt: empty cards are replaced without asking', async () => {
   assert.equal(await page.inputValue('#soundscape-input'), 'light rain');
   assert.equal(await page.inputValue('#music-input'), 'N/A');
   assert.match(await firstLine(page), /behind her\. \[Shot 2\] At 00:01\.000, The girl bent down/);
+});
+
+test('paste prompt: switches the prompt mode by the alignment sentence', async () => {
+  const { page, context } = await open();
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+  assert.equal(await page.locator('#mode-select').inputValue(), 'i2va');
+  await page.evaluate((text) => navigator.clipboard.writeText(text), '[Shot 1] At 00:00.000, one. [Shot 2] At 00:01.000, two.');
+  await page.click('#paste-prompt-btn');
+  await page.waitForFunction(() => document.querySelectorAll('textarea.shot-input').length === 2 && document.querySelector('textarea.shot-input').value === 'one.');
+  assert.equal(await page.locator('#mode-select').inputValue(), 't2va');
+  await page.evaluate((text) => navigator.clipboard.writeText(text),
+    'For the target video, at 0.00 seconds into the target video, <Picture 1> (from [Shot 1]) is fully referenced.\n\nintegrated_multimodal_description: [Shot 1] At 00:00.000, three.');
+  await page.click('#paste-prompt-btn');
+  await page.click('#confirm-ok');
+  await page.waitForFunction(() => document.querySelector('textarea.shot-input').value === 'three.');
+  assert.equal(await page.locator('#mode-select').inputValue(), 'i2va');
 });
 
 test('paste prompt: asks before replacing existing content', async () => {
