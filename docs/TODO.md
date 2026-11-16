@@ -14,6 +14,7 @@
    - `summary` 前綴 6 個值（含 `keyframe completion`）、多選、` + ` 串接、不可重複、預設 `reference generation`。
    - 社群寫法（`retention_analysis` 整段自由文字）以「自由文字模式」備案；插入按鈕含 `<d>[Language] …</d>`；`parsePrompt()` 要能辨識兩種格式。
    - 現有格式已補官方 I2VA 關鍵幀對齊句；FL2VA／L2VA（首尾幀）目前不支援。
+   - Base 家族（T2VA／I2VA／FL2VA／L2VA）只差最前面的對齊句：T2VA 不加，I2VA 單圖首幀（現況，永遠輸出），FL2VA 首尾幀、L2VA 尾幀各有不同句型（見 `docs/MULTIMODAL-SPEC.md` 末段與官方 `base-en.txt`）。計畫在 Base 格式內加「模式」下拉（先 T2VA／I2VA，再擴充），與 Ref2VA 一起規劃；屬輸出格式變更，動手前要先問。
 
 ## 已知問題／限制
 
