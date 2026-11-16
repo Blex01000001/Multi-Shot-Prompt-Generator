@@ -9,11 +9,11 @@
 
 1. 【使用者】新增 `.claude/settings.json`：註冊 SessionStart hook（`$CLAUDE_PROJECT_DIR/.claude/hooks/session-start.sh`，腳本已在 repo，但尚未註冊所以不會執行），並加權限白名單（`npm test`、`npm run test:*`、`npm run screenshots`、`git status`、`git log`、`git diff`、`git show`）。Claude 寫入此檔會被自動模式擋下，不要繞過。
 2. 【先討論】Tailwind Play CDN 的 console 警告與載入時短暫無樣式：根治要改用預先產生的 CSS，等於引入建置步驟。
-3. 【先討論】新增第二種 Prompt 格式（官方多模態格式：`subject_definitions`／`summary`／`retention_analysis`／`detailed_description`＋`overall_soundscape`／`non_diegetic_music`）。已定：同一頁、每份分鏡各存 `format`，切換格式時兩種格式的內容各存一份、互不影響（鏡頭、音效／音樂都分開，切回來還在；舊資料與未標格式的匯入視為 image-to-video）；照官方範例輸出，第一個鏡頭只寫 `[Shot 1]`（不寫 `At`），其後 `[Shot N] At MM:SS.mmm,`；`detailed_description` 開頭一行整體風格；現有格式輸出不變。待定：官方文件與完整規格（動手前要使用者給）。
-   - 參考清單：每筆含類型（`<Subject N>`／`<Picture N>`／`<Video N>`／`<Audio N>`，Subject 可指向 Picture）、定義、保留標記（下拉）、保留說明；同時產生 `subject_definitions` 與 `retention_analysis`，`appears in [Shot …]` 由掃描鏡頭描述自動算出。
-   - 保留標記資料放在容易增加的地方：視覺類 `fully_preserved`／`partially_preserved`／`attribute_transfer`／`weak_reference`；音訊類 `fully_copy`／`partially_copy`／`reference`／`weak_reference`。
-   - `summary` 前綴 `[…]` 多選、以 ` + ` 串接，預設 `reference generation`；基礎值 `reference generation`／`video editing`／`video continuation`／`audio reference`／`audio reuse`。
-   - 社群寫法（`retention_analysis` 整段自由文字）以「自由文字模式」備案；插入按鈕含 `<d>…</d>` 對白標籤；`parsePrompt()` 要能辨識兩種格式。
+3. 【先討論】新增第二種 Prompt 格式（官方 Ref2VA 六段式）。官方規格已逐字核對、摘要在 `docs/MULTIMODAL-SPEC.md`，動手前先讀。已定：同一頁、每份分鏡各存 `format`，兩種格式的內容（鏡頭、音效、音樂）各存一份、互不影響，舊資料與未標格式的匯入視為 image-to-video；輸出照官方，現有格式輸出不變。
+   - 參考清單：類型（Subject／Picture／Video／Audio，各類獨立編號）、定義、保留標記（下拉，資料放在容易增加處）、保留說明；同時產生 `subject_definitions` 與 `retention_analysis`，`appears in [Shot …]` 由掃描鏡頭描述自動算出。Picture 只在「首幀／關鍵幀／分鏡參考」時單獨列，其餘寫進 Subject 定義（官方規定）。
+   - `summary` 前綴 6 個值（含 `keyframe completion`）、多選、` + ` 串接、不可重複、預設 `reference generation`。
+   - 社群寫法（`retention_analysis` 整段自由文字）以「自由文字模式」備案；插入按鈕含 `<d>[Language] …</d>`；`parsePrompt()` 要能辨識兩種格式。
+   - 待確認：官方 I2VA／FL2VA／L2VA 輸出最前面還有一行關鍵幀對齊句＋空行，現有 image-to-video 格式沒有（見規格文件末段），要不要補？屬輸出格式變更，要先問。
 
 ## 已知問題／限制
 
