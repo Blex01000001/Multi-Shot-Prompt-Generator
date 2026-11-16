@@ -382,14 +382,16 @@ function buildStoryboardExport(state, now = new Date()) {
     version: 1,
     exportedAt: now.toISOString(),
     ...(state.name ? { name: state.name } : {}),
+    mode: PROMPT_MODES.includes(state.mode) ? state.mode : 'i2va',
     shots: state.shots.map(({ duration, description }) => ({ duration, description })),
     overallSoundscape: state.overallSoundscape,
     nonDiegeticMusic: state.nonDiegeticMusic,
   };
 }
 
-// Read a saved storyboard. Returns { name, shots: [{ duration, description }],
-// overallSoundscape, nonDiegeticMusic } (name is '' when missing; callers add
+// Read a saved storyboard. Returns { name, mode, shots: [{ duration, description }],
+// overallSoundscape, nonDiegeticMusic } (name is '' when missing; mode is
+// 'i2va' unless the file says 't2va'; callers add
 // the shot ids); throws if
 // `data` holds no shot list. Missing durations become "1.0", audio fields are
 // one line and fall back to N/A; other bad values are kept so the card shows
@@ -405,6 +407,7 @@ function parseStoryboard(data) {
   const audio = (v) => collapseSpaces(text(v)) || DEFAULT_AUDIO;
   return {
     name: collapseSpaces(text(data.name)).slice(0, PROJECT_NAME_MAX),
+    mode: PROMPT_MODES.includes(data.mode) ? data.mode : 'i2va',
     shots,
     overallSoundscape: audio(data.overallSoundscape),
     nonDiegeticMusic: audio(data.nonDiegeticMusic),
@@ -423,6 +426,7 @@ function blankProject(id, name) {
   return {
     id,
     name,
+    mode: 'i2va',
     shots: createInitialShots().map(({ duration, description }) => ({ duration, description })),
     overallSoundscape: DEFAULT_AUDIO,
     nonDiegeticMusic: DEFAULT_AUDIO,
@@ -446,18 +450,29 @@ function nextProjectId(projects) {
   return `p${max + 1}`;
 }
 
-function buildProjectsStore(projects, activeId) {
+// Settings kept with the storyboards: the default duration of new shots and
+// the "append a period" switch. Bad or missing values fall back to the defaults.
+function normalizeSettings(raw) {
+  const r = raw && typeof raw === 'object' ? raw : {};
+  return {
+    timeStepSec: TIME_STEPS.includes(r.timeStepSec) ? r.timeStepSec : 1,
+    autoPeriod: typeof r.autoPeriod === 'boolean' ? r.autoPeriod : true,
+  };
+}
+
+function buildProjectsStore(projects, activeId, settings) {
   return {
     type: PROJECTS_STORE_TYPE,
     version: 1,
     activeId,
-    projects: projects.map(({ id, name, shots, overallSoundscape, nonDiegeticMusic }) => (
-      { id, name, shots, overallSoundscape, nonDiegeticMusic }
+    settings: normalizeSettings(settings),
+    projects: projects.map(({ id, name, mode, shots, overallSoundscape, nonDiegeticMusic }) => (
+      { id, name, mode, shots, overallSoundscape, nonDiegeticMusic }
     )),
   };
 }
 
-// Read a saved projects store. Returns { projects, activeId }; unreadable
+// Read a saved projects store. Returns { projects, activeId, settings }; unreadable
 // projects are dropped, bad / duplicate ids and missing names are replaced,
 // and an unknown activeId becomes the first project. Throws if none is left.
 function parseProjectsStore(data) {
@@ -476,7 +491,7 @@ function parseProjectsStore(data) {
     if (!p.name) p.name = defaultProjectName(projects.filter(q => q !== p && q.name));
   });
   const activeId = projects.some(p => p.id === data.activeId) ? data.activeId : projects[0].id;
-  return { projects, activeId };
+  return { projects, activeId, settings: normalizeSettings(data.settings) };
 }
 
 // Return a copy of `tags` with the tag at index `from` moved to index `to`.
@@ -564,6 +579,7 @@ if (typeof module === 'object' && module.exports) {
     PROJECT_NAME_MAX,
     PROJECTS_STORE_TYPE,
     parseStoryboard,
+    normalizeSettings,
     blankProject,
     defaultProjectName,
     nextProjectId,

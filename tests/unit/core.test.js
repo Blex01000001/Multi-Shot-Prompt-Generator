@@ -139,8 +139,12 @@ test('buildStoryboardExport / parseStoryboard round-trip and tolerate bad input'
   assert.equal(out.exportedAt, '2026-01-02T03:04:05.000Z');
   assert.deepEqual(out.shots, [{ duration: '1.5', description: 'a girl smiles' }, { duration: '2.0', description: '' }]);
   assert.deepEqual(core.parseStoryboard(JSON.parse(JSON.stringify(out))), {
-    name: '', shots: out.shots, overallSoundscape: 'wind', nonDiegeticMusic: 'N/A',
+    name: '', mode: 'i2va', shots: out.shots, overallSoundscape: 'wind', nonDiegeticMusic: 'N/A',
   });
+  // the prompt mode is exported and read back; anything unknown means i2va
+  assert.equal(core.buildStoryboardExport({ ...state, mode: 't2va' }).mode, 't2va');
+  assert.equal(core.parseStoryboard({ ...out, mode: 't2va' }).mode, 't2va');
+  assert.equal(core.parseStoryboard({ ...out, mode: 'nonsense' }).mode, 'i2va');
   // the name is exported when set, and read back trimmed to one line
   const named = core.buildStoryboardExport({ ...state, name: 'Intro scene' });
   assert.equal(named.name, 'Intro scene');
@@ -175,10 +179,13 @@ test('project helpers: blank project, names, ids', () => {
 test('buildProjectsStore / parseProjectsStore round-trip and repair bad data', () => {
   const a = { ...core.blankProject('p1', 'One'), overallSoundscape: 'wind' };
   const b = core.blankProject('p4', 'Two');
-  const store = core.buildProjectsStore([a, b], 'p4');
+  b.mode = 't2va';
+  const store = core.buildProjectsStore([a, b], 'p4', { timeStepSec: 2, autoPeriod: false });
   assert.equal(store.type, 'minimax-h3-prompt-projects');
   const back = core.parseProjectsStore(JSON.parse(JSON.stringify(store)));
   assert.equal(back.activeId, 'p4');
+  assert.deepEqual(back.projects.map(p => p.mode), ['i2va', 't2va']);
+  assert.deepEqual(back.settings, { timeStepSec: 2, autoPeriod: false });
   assert.deepEqual(back.projects.map(p => [p.id, p.name, p.overallSoundscape]), [['p1', 'One', 'wind'], ['p4', 'Two', 'N/A']]);
 
   // bad / duplicate ids and missing names are replaced; unreadable entries and an unknown activeId are dropped
@@ -202,6 +209,17 @@ test('buildProjectsStore / parseProjectsStore round-trip and repair bad data', (
   for (const bad of [null, {}, { projects: 'x' }, { projects: [] }, { projects: [{ shots: [] }] }]) {
     assert.throws(() => core.parseProjectsStore(bad), /No projects/);
   }
+});
+
+test('normalizeSettings keeps valid values and repairs the rest', () => {
+  assert.deepEqual(core.normalizeSettings({ timeStepSec: 1.5, autoPeriod: false }), { timeStepSec: 1.5, autoPeriod: false });
+  for (const bad of [null, undefined, 'x', {}, { timeStepSec: 7, autoPeriod: 'yes' }]) {
+    assert.deepEqual(core.normalizeSettings(bad), { timeStepSec: 1, autoPeriod: true });
+  }
+  // an old store without settings loads with the defaults
+  const old = core.parseProjectsStore({ projects: [{ id: 'p1', name: 'A', shots: [{ duration: '1', description: 'x' }] }] });
+  assert.deepEqual(old.settings, { timeStepSec: 1, autoPeriod: true });
+  assert.equal(old.projects[0].mode, 'i2va');
 });
 
 test('moveTag moves one tag and ignores bad indexes', () => {

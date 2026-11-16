@@ -20,8 +20,10 @@ function loadActiveProject() {
   state.shots = withShotIds(project.shots);
   state.overallSoundscape = project.overallSoundscape;
   state.nonDiegeticMusic = project.nonDiegeticMusic;
+  state.mode = project.mode;
   state.activeShotIndex = 0;
   syncAudioInputs();
+  syncSettingInputs();
   render(); // also saves
   renderProjectUi();
 }

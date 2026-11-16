@@ -250,6 +250,21 @@ test('storyboard is saved to localStorage and restored after reload', async () =
   assert.equal(await descriptions(page).nth(0).inputValue(), '');
 });
 
+test('default duration, auto period and prompt mode are saved and restored', async () => {
+  const { page } = await open();
+  await page.selectOption('#time-step-select', '2');
+  await page.uncheck('#auto-period-check');
+  await page.selectOption('#mode-select', 't2va');
+  await page.reload();
+  await page.waitForSelector('.shot-card');
+  assert.equal(await page.locator('#time-step-select').inputValue(), '2');
+  assert.equal(await page.locator('#auto-period-check').isChecked(), false);
+  assert.equal(await page.locator('#mode-select').inputValue(), 't2va');
+  assert.ok((await output(page)).startsWith('integrated_multimodal_description:'));
+  await page.click('#add-shot-btn');
+  assert.equal((await durationValues(page)).at(-1), '2.0');
+});
+
 test('a corrupted saved storyboard falls back to the blank sample', async () => {
   const { page } = await open({ storage: { 'msp-projects': '{oops' } });
   assert.equal(await descriptions(page).count(), 2);

@@ -15,7 +15,7 @@ overall_soundscape: <環境音效，預設 N/A>
 non_diegetic_music: <背景音樂，預設 N/A>
 ```
 
-- 「Prompt 模式」（`state.mode`，`buildPrompt()` 的 `mode`，預設 `i2va`）：`i2va` 第一行是官方 I2VA 關鍵幀對齊句（`KEYFRAME_ALIGNMENT`，視為一張圖當首幀），後面空一行再接欄位；`t2va` 沒有這一行，直接從 `integrated_multimodal_description` 開始。`parsePrompt()` 兩種都能讀。模式目前不保存。
+- 「Prompt 模式」（`state.mode`，`buildPrompt()` 的 `mode`，預設 `i2va`）：`i2va` 第一行是官方 I2VA 關鍵幀對齊句（`KEYFRAME_ALIGNMENT`，視為一張圖當首幀），後面空一行再接欄位；`t2va` 沒有這一行，直接從 `integrated_multimodal_description` 開始。`parsePrompt()` 兩種都能讀。模式存在每份分鏡裡（`project.mode`）。
 - 時間戳記 `MM:SS.mmm`；鏡頭之間一個半形空格；「自動格式優化」開啟時描述結尾補 `.`。
 - **描述空白的鏡頭不輸出**，其餘依序重新編號；卡片標籤顯示輸出編號，空白卡片顯示 `[Shot –]`。
 - **鏡頭存的是持續時間**（`shot.duration`，秒數字串如 `"1.5"`），`At` 時間由 `analyzeShots()` 算出：第一個輸出的鏡頭從 `00:00.000` 開始，之後每個鏡頭的開始時間是前面「會輸出的」鏡頭持續時間加總。空白鏡頭不計入時間軸（卡片顯示 `At –`）。PREVIEW 顯示總長度 `totalDuration()`（只加總會輸出的鏡頭）。
@@ -25,7 +25,7 @@ non_diegetic_music: <背景音樂，預設 N/A>
 ## 資料保存
 
 - `localStorage`：`msp-lang`（語言）、`msp-tags`（標籤陣列）、`msp-projects`（所有分鏡與目前開啟的那份）。舊版的 `msp-shots`（單份分鏡）會在載入時自動搬進第一份分鏡並移除。讀寫都包 `try/catch`，不能用時退回預設值。
-- `msp-projects` 格式：`{ "type": "minimax-h3-prompt-projects", "version": 1, "activeId", "projects": [{ "id": "p1", "name", "shots": [{ "duration", "description" }], "overallSoundscape", "nonDiegeticMusic" }] }`。`state.shots`／音效／音樂是目前這份的即時內容，存檔時（`saveStoryboard()` → `syncActiveProject()`）才寫回；至少保留一份，刪除要確認。
-- 分鏡在 `refreshDerived()` 結尾自動存檔（輸入與結構改變都會經過）；重新整理後還原，Reset 只清空目前這份。「預設持續時間」與「自動格式優化」目前不保存。
-- 單份分鏡匯出格式：`{ "type": "minimax-h3-prompt-storyboard", "version": 1, "exportedAt": "…", "name"?, "shots": [{ "duration", "description" }], "overallSoundscape", "nonDiegeticMusic" }`；匯入會新增一份分鏡並切過去（原本的不動）。
+- `msp-projects` 格式：`{ "type": "minimax-h3-prompt-projects", "version": 1, "activeId", "settings": { "timeStepSec", "autoPeriod" }, "projects": [{ "id": "p1", "name", "mode", "shots": [{ "duration", "description" }], "overallSoundscape", "nonDiegeticMusic" }] }`。`state.shots`／音效／音樂是目前這份的即時內容，存檔時（`saveStoryboard()` → `syncActiveProject()`）才寫回；至少保留一份，刪除要確認。
+- 分鏡在 `refreshDerived()` 結尾自動存檔（輸入與結構改變都會經過）；重新整理後還原，Reset 只清空目前這份。「預設持續時間」`timeStepSec` 與「自動格式優化」`autoPeriod` 存在 `msp-projects.settings`（所有分鏡共用，變更時存檔）；缺少時用預設值 1 秒／開啟。
+- 單份分鏡匯出格式：`{ "type": "minimax-h3-prompt-storyboard", "version": 1, "exportedAt": "…", "name"?, "mode"?, "shots": [{ "duration", "description" }], "overallSoundscape", "nonDiegeticMusic" }`；匯入會新增一份分鏡並切過去（原本的不動）。
 - 標籤匯出格式：`{ "type": "minimax-h3-prompt-tags", "version": 1, "exportedAt": "…", "tags": [{ "text", "note", "notes"? }] }`；匯入也接受純陣列，採合併、重複（不分大小寫）略過。

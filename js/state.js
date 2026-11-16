@@ -32,7 +32,7 @@ function withShotIds(shots) {
   return shots.map(shot => ({ id: nextShotId++, ...shot }));
 }
 
-// Saved storyboards → { projects, activeId }, or null when nothing usable is saved.
+// Saved storyboards → { projects, activeId, settings }, or null when nothing usable is saved.
 function loadProjects() {
   try {
     const raw = localStorage.getItem(PROJECTS_STORAGE_KEY);
@@ -40,7 +40,7 @@ function loadProjects() {
     const legacy = localStorage.getItem(LEGACY_STORYBOARD_KEY);
     if (legacy !== null) {
       const board = parseStoryboard(JSON.parse(legacy));
-      return { projects: [{ ...board, id: 'p1', name: board.name || 'Storyboard 1' }], activeId: 'p1' };
+      return { projects: [{ ...board, id: 'p1', name: board.name || 'Storyboard 1' }], activeId: 'p1', settings: normalizeSettings(null) };
     }
   } catch (e) { /* storage unavailable or corrupted: start from the sample */ }
   return null;
@@ -54,6 +54,7 @@ function activeProject() {
 function syncActiveProject() {
   const project = activeProject();
   if (!project) return;
+  project.mode = state.mode;
   project.shots = state.shots.map(({ duration, description }) => ({ duration, description }));
   project.overallSoundscape = state.overallSoundscape;
   project.nonDiegeticMusic = state.nonDiegeticMusic;
@@ -62,7 +63,7 @@ function syncActiveProject() {
 function saveStoryboard() {
   syncActiveProject();
   try {
-    localStorage.setItem(PROJECTS_STORAGE_KEY, JSON.stringify(buildProjectsStore(state.projects, state.activeProjectId)));
+    localStorage.setItem(PROJECTS_STORAGE_KEY, JSON.stringify(buildProjectsStore(state.projects, state.activeProjectId, state)));
     localStorage.removeItem(LEGACY_STORYBOARD_KEY);
   } catch (e) { /* ignore */ }
 }
@@ -85,10 +86,12 @@ function dateStamp() {
   return new Date().toISOString().slice(0, 10).replace(/-/g, '');
 }
 
-const savedProjects = loadProjects() || { projects: [blankProject('p1', 'Storyboard 1')], activeId: 'p1' };
+const savedProjects = loadProjects() ||
+  { projects: [blankProject('p1', 'Storyboard 1')], activeId: 'p1', settings: normalizeSettings(null) };
 const startProject = savedProjects.projects.find(p => p.id === savedProjects.activeId);
 
-// shots / overallSoundscape / nonDiegeticMusic hold the active storyboard.
+// shots / overallSoundscape / nonDiegeticMusic / mode hold the active storyboard;
+// timeStepSec / autoPeriod are settings saved with all storyboards.
 const state = {
   tags: loadTags(),
   projects: savedProjects.projects,
@@ -96,9 +99,9 @@ const state = {
   shots: withShotIds(startProject.shots),
   overallSoundscape: startProject.overallSoundscape,
   nonDiegeticMusic: startProject.nonDiegeticMusic,
-  timeStepSec: 1,
-  autoPeriod: true,
-  mode: 'i2va', // 'i2va' | 't2va' (see buildPrompt); not saved
+  timeStepSec: savedProjects.settings.timeStepSec,
+  autoPeriod: savedProjects.settings.autoPeriod,
+  mode: startProject.mode, // 'i2va' | 't2va' (see buildPrompt)
   activeShotIndex: 0,
 };
 

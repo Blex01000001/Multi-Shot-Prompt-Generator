@@ -131,6 +131,13 @@ function syncAudioInputs() {
   musicInput.value = state.nonDiegeticMusic;
 }
 
+// Show the saved settings (default duration, auto period, mode) in their controls.
+function syncSettingInputs() {
+  renderTimeStepOptions();
+  autoPeriodCheck.checked = state.autoPeriod;
+  modeSelect.value = state.mode;
+}
+
 function resetSample() {
   state.shots = createInitialShots();
   state.overallSoundscape = DEFAULT_AUDIO;
@@ -159,6 +166,7 @@ function initGlobalControls() {
 
   timeStepSelect.addEventListener('change', (e) => {
     state.timeStepSec = parseFloat(e.target.value);
+    saveStoryboard();
   });
 
   modeSelect.addEventListener('change', (e) => {
@@ -169,7 +177,7 @@ function initGlobalControls() {
 
   autoPeriodCheck.addEventListener('change', (e) => {
     state.autoPeriod = e.target.checked;
-    refreshDerived();
+    refreshDerived(); // also saves
   });
 
   // Escape closes the top-most layer: confirm dialog, then paste / tag modal.
@@ -187,6 +195,7 @@ function initGlobalControls() {
 // -----------------------------------------------------------------------------
 currentLang = loadLang();
 syncAudioInputs();
+syncSettingInputs();
 initGlobalControls();
 initLanguageMenu();
 initTags();
