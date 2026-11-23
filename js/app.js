@@ -81,14 +81,34 @@ function applyLanguage() {
     const active = opt.dataset.lang === currentLang;
     opt.setAttribute('aria-checked', String(active));
     opt.className = `lang-option w-full text-left px-3 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all ${
-      active ? 'bg-indigo-600/30 text-indigo-100' : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+      active ? 'bg-indigo-600/30 text-indigo-100' : 'text-slate-300 hover:bg-slate-800 hover:text-slate-100'
     }`;
   });
 
+  syncThemeButton();
   renderTimeStepOptions();
   renderChips();
   if (isTagModalOpen()) renderTagManager();
   render();
+}
+
+// The button offers the other theme: sun (go light) in dark mode, moon (go dark) in light mode.
+function syncThemeButton() {
+  const light = currentTheme() === 'light';
+  const label = t(light ? 'themeToDark' : 'themeToLight');
+  themeBtn.title = label;
+  themeBtn.setAttribute('aria-label', label);
+  themeIconSun.classList.toggle('hidden', light);
+  themeIconMoon.classList.toggle('hidden', !light);
+}
+
+function initTheme() {
+  themeBtn.addEventListener('click', () => {
+    const next = currentTheme() === 'light' ? 'dark' : 'light';
+    applyTheme(next);
+    saveTheme(next);
+    syncThemeButton();
+  });
 }
 
 function setLanguage(lang) {
@@ -197,6 +217,7 @@ syncAudioInputs();
 syncSettingInputs();
 initGlobalControls();
 initLanguageMenu();
+initTheme();
 initTags();
 initPaste();
 initProjects();

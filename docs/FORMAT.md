@@ -34,7 +34,7 @@ non_diegetic_music: <背景音樂，預設 N/A>
 
 ## 資料保存
 
-- `localStorage`：`msp-lang`（語言）、`msp-tags`（標籤陣列）、`msp-projects`（所有分鏡與目前開啟的那份）。舊版的 `msp-shots`（單份分鏡）會在載入時自動搬進第一份分鏡並移除。讀寫都包 `try/catch`，不能用時退回預設值。
+- `localStorage`：`msp-lang`（語言）、`msp-theme`（`light`／`dark`，預設 `dark`）、`msp-tags`（標籤陣列）、`msp-projects`（所有分鏡與目前開啟的那份）。舊版的 `msp-shots`（單份分鏡）會在載入時自動搬進第一份分鏡並移除。讀寫都包 `try/catch`，不能用時退回預設值。
 - `msp-projects` 格式：`{ "type": "minimax-h3-prompt-projects", "version": 1, "activeId", "settings": { "timeStepSec", "autoPeriod" }, "projects": [{ "id": "p1", "name", "mode", "shots": [{ "duration", "description" }], "overallSoundscape", "nonDiegeticMusic", "ref": { "style", "summaryTypes", "summary", "refs", "retentionMode", "retentionFree", "shots", "overallSoundscape", "nonDiegeticMusic" } }] }`。`state.shots`／音效／音樂是目前這份的即時內容，存檔時（`saveStoryboard()` → `syncActiveProject()`）才寫回；至少保留一份，刪除要確認。
 - 分鏡在 `refreshDerived()` 結尾自動存檔（輸入與結構改變都會經過）；重新整理後還原，Reset 只清空目前這份。「預設持續時間」`timeStepSec` 與「自動格式優化」`autoPeriod` 存在 `msp-projects.settings`（所有分鏡共用，變更時存檔）；缺少時用預設值 1 秒／開啟。
 - 單份分鏡匯出格式：`{ "type": "minimax-h3-prompt-storyboard", "version": 1, "exportedAt": "…", "name"?, "mode"?, "shots": [{ "duration", "description" }], "overallSoundscape", "nonDiegeticMusic" }`；匯入會新增一份分鏡並切過去（原本的不動）。

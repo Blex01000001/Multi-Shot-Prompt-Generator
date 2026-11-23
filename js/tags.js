@@ -69,7 +69,7 @@ function tagEditRowHtml(tag) {
       </div>
       <p class="tag-edit-error hidden mt-2 text-xs sm:text-sm font-semibold text-rose-300"></p>
       <div class="mt-2.5 flex justify-end gap-2">
-        <button type="button" data-action="cancel" class="px-3 py-1.5 text-xs sm:text-sm font-semibold text-slate-300 hover:text-white bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/60 rounded-lg transition-all">${escapeHtml(t('cancel'))}</button>
+        <button type="button" data-action="cancel" class="px-3 py-1.5 text-xs sm:text-sm font-semibold text-slate-300 hover:text-slate-100 bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/60 rounded-lg transition-all">${escapeHtml(t('cancel'))}</button>
         <button type="button" data-action="save" class="px-3 py-1.5 text-xs sm:text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-500 rounded-lg transition-all">${escapeHtml(t('save'))}</button>
       </div>
     </li>`;

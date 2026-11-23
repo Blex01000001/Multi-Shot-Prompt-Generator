@@ -178,6 +178,9 @@ const storyboardExportBtn = $('storyboard-export-btn');
 const storyboardImportBtn = $('storyboard-import-btn');
 const storyboardImportFile = $('storyboard-import-file');
 const langBtn = $('lang-btn');
+const themeBtn = $('theme-btn');
+const themeIconSun = $('theme-icon-sun');
+const themeIconMoon = $('theme-icon-moon');
 const langMenu = $('lang-menu');
 
 // Tags panel & manager modal

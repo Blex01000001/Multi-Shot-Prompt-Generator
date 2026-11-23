@@ -35,6 +35,7 @@ non_diegetic_music: N/A
 - Each `At` time is calculated from the durations you enter: the first shot starts at `00:00.000`,
   and each later shot starts when the previous one ends.
 - `overall_soundscape` and `non_diegetic_music` default to `N/A`.
+- Use the sun / moon button in the top bar to switch between the dark and light theme.
 - Write prompt text in English. Only the interface is translated.
 
 ## How to use
