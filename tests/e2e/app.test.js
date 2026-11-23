@@ -678,6 +678,29 @@ test('tag manager: export, restore defaults, import (merge), bad file', async ()
   fs.rmSync(tmp, { recursive: true, force: true });
 });
 
+test('theme toggle: dark by default, switches to light, is remembered and translated', async () => {
+  const { page } = await open();
+  const root = page.locator('html');
+  const bodyBg = () => page.evaluate(() => getComputedStyle(document.body).backgroundColor);
+  assert.equal(await root.getAttribute('class'), 'dark');
+  assert.equal(await bodyBg(), 'rgb(2, 6, 23)'); // slate-950
+  assert.equal(await page.locator('#theme-btn').getAttribute('aria-label'), 'Switch to light theme');
+  await page.click('#theme-btn');
+  assert.equal(await root.getAttribute('class'), 'light');
+  assert.equal(await bodyBg(), 'rgb(248, 250, 252)'); // slate-50
+  assert.equal(await page.locator('#theme-icon-moon').isVisible(), true);
+  assert.equal(await page.locator('#theme-btn').getAttribute('aria-label'), 'Switch to dark theme');
+  assert.equal(await page.locator('meta[name="theme-color"]').getAttribute('content'), '#f8fafc');
+  await page.reload();
+  assert.equal(await root.getAttribute('class'), 'light'); // remembered, applied before the first paint
+  await page.click('#lang-btn');
+  await page.click('[data-lang="zh-Hant"]');
+  assert.equal(await page.locator('#theme-btn').getAttribute('aria-label'), '切換為暗色主題');
+  await page.click('#theme-btn');
+  assert.equal(await root.getAttribute('class'), 'dark');
+  assert.equal(await bodyBg(), 'rgb(2, 6, 23)');
+});
+
 test('language switcher translates the page and is remembered', async () => {
   const { page } = await open();
   await page.click('#lang-btn');

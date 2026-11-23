@@ -14,7 +14,8 @@
 | 檔案 | 負責 |
 | --- | --- |
 | `index.html` | 靜態結構、彈出視窗、音效卡片（`data-audio`）、`<script>` 載入順序 |
-| `css/style.css`、`js/tailwind-config.js` | 少量自訂樣式；Tailwind CDN 設定 |
+| `css/style.css`、`js/tailwind-config.js` | 少量自訂樣式與亮／暗主題的顏色變數；Tailwind CDN 設定 |
+| `js/theme.js` | 亮／暗主題讀取、套用、存檔（放在 `<head>`，載入時就套用避免閃爍）；切換按鈕在 `app.js` |
 | `js/core.js` | **純邏輯**：時間與持續時間、鏡頭增刪複製移動、`buildPrompt()`／`parsePrompt()`、`analyzeShots()`、標籤與分鏡資料處理 |
 | `js/i18n.js` | 介面文字 `MESSAGES`（每鍵三語並列）、`t()` |
 | `js/state.js` | `state`、DOM 參照、localStorage 讀寫、`downloadJson()`／`showToast()`／`showConfirm()`、`ICONS`／`icon()` |
@@ -56,7 +57,7 @@ npm run screenshots   # 改到外觀時跑，再 Read test-results/screenshots/*
 
 ## 設計規範
 
-1. 深色科技感：slate-900/950、`.glass-panel`、indigo／purple 漸層與 `.glow-purple`、`rounded-xl`、`border-slate-700/60`。
+1. 深色科技感（預設）：slate-900/950、`.glass-panel`、indigo／purple 漸層與 `.glow-purple`、`rounded-xl`、`border-slate-700/60`。另有亮色主題（右上角切換，`msp-theme`）：顏色是 `css/style.css` 的 CSS 變數，`html.light` 時 slate 整組反轉、accent 色只反轉淺色階，所以**照常用深色寫 class 即可**，不要寫死色碼；`text-white` 只用在實心彩色按鈕（500–700 底色），灰底按鈕的 hover 用 `hover:text-slate-100`；新畫面要看亮色截圖。
 2. 字體：一般 `text-xs sm:text-sm`、標題 `text-base sm:text-lg`；不小於此，次要文字至少 `text-slate-400`。
 3. 三語（English 預設／繁體中文／日本語）。Prompt 欄位名、`[Shot N]`、標籤文字一律**英文**，只有說明文字跟著語言。
 4. 手機 390px 不可水平捲動（e2e 會檢查）；用 `sm:`／`lg:` 支援桌機。

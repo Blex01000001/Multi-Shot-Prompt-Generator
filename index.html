@@ -16,6 +16,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <script src="js/tailwind-config.js"></script>
+  <script src="js/theme.js"></script>
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body class="bg-slate-950 text-slate-100 font-sans min-h-screen antialiased flex flex-col selection:bg-indigo-500 selection:text-white text-[16px] sm:text-[17px]">
@@ -30,7 +31,7 @@
           </svg>
         </div>
         <div class="min-w-0">
-          <h1 data-i18n="title" class="font-extrabold text-base min-[420px]:text-xl sm:text-2xl leading-tight tracking-tight bg-gradient-to-r from-white via-slate-200 to-indigo-200 bg-clip-text text-transparent">
+          <h1 data-i18n="title" class="font-extrabold text-base min-[420px]:text-xl sm:text-2xl leading-tight tracking-tight bg-gradient-to-r from-slate-50 via-slate-200 to-indigo-200 bg-clip-text text-transparent">
             MiniMax H3 Multi-Shot Prompt Generator
           </h1>
           <p data-i18n="subtitle" class="text-xs sm:text-sm text-slate-400 font-medium">Structured AI video prompts &amp; multi-shot storyboard tool</p>
@@ -39,7 +40,7 @@
 
       <!-- Quick Actions -->
       <div class="flex items-center gap-2 sm:gap-3 shrink-0">
-        <button id="reset-btn" data-i18n-title="reset" class="px-3 sm:px-3.5 py-2 text-xs sm:text-sm font-semibold text-slate-300 hover:text-white bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/60 rounded-xl transition-all flex items-center gap-2">
+        <button id="reset-btn" data-i18n-title="reset" class="px-3 sm:px-3.5 py-2 text-xs sm:text-sm font-semibold text-slate-300 hover:text-slate-100 bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/60 rounded-xl transition-all flex items-center gap-2">
           <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
           </svg>
@@ -49,10 +50,21 @@
           MiniMax H3 compatible
         </span>
 
+        <!-- Theme toggle (light / dark): shows the sun in dark mode and the moon in light mode -->
+        <button id="theme-btn" type="button"
+          class="p-2 rounded-xl text-slate-300 hover:text-slate-100 bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/60 transition-all">
+          <svg id="theme-icon-sun" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path>
+          </svg>
+          <svg id="theme-icon-moon" class="hidden w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path>
+          </svg>
+        </button>
+
         <!-- Language Switcher -->
         <div class="relative" id="lang-wrap">
           <button id="lang-btn" type="button" aria-haspopup="menu" aria-expanded="false" data-i18n-title="language" data-i18n-aria="language"
-            class="p-2 rounded-xl text-slate-300 hover:text-white bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/60 transition-all">
+            class="p-2 rounded-xl text-slate-300 hover:text-slate-100 bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/60 transition-all">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"></path>
             </svg>
@@ -307,7 +319,7 @@
       <div class="glass-panel rounded-2xl p-5 border border-slate-800">
         <div class="flex items-center justify-between gap-3 mb-1">
           <h3 data-i18n="tagsTitle" class="text-xs sm:text-sm font-bold text-slate-200 uppercase tracking-wider">Common AI Video Prompt Tags</h3>
-          <button id="manage-tags-btn" type="button" class="px-3 py-1.5 text-xs sm:text-sm font-semibold text-slate-300 hover:text-white bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/60 rounded-lg transition-all flex items-center gap-1.5 shrink-0">
+          <button id="manage-tags-btn" type="button" class="px-3 py-1.5 text-xs sm:text-sm font-semibold text-slate-300 hover:text-slate-100 bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/60 rounded-lg transition-all flex items-center gap-1.5 shrink-0">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
             </svg>
@@ -333,12 +345,12 @@
 
   <!-- Tag Manager Modal -->
   <div id="tag-modal" class="hidden fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-6" role="dialog" aria-modal="true" aria-labelledby="tag-modal-title">
-    <div id="tag-modal-backdrop" class="absolute inset-0 bg-slate-950/80 backdrop-blur-sm"></div>
+    <div id="tag-modal-backdrop" class="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
     <div class="relative w-full sm:max-w-2xl max-h-[92vh] flex flex-col rounded-t-2xl sm:rounded-2xl bg-slate-900/95 border border-slate-700/80 shadow-2xl shadow-black/60 glow-purple">
       <!-- Modal header -->
       <div class="flex items-center justify-between gap-3 px-5 sm:px-6 py-4 border-b border-slate-800">
         <h2 id="tag-modal-title" data-i18n="manageTitle" class="text-base sm:text-lg font-bold text-slate-100 uppercase tracking-wider">Manage Prompt Tags</h2>
-        <button id="tag-modal-close" type="button" data-i18n-title="close" data-i18n-aria="close" class="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-all">
+        <button id="tag-modal-close" type="button" data-i18n-title="close" data-i18n-aria="close" class="p-2 rounded-lg text-slate-400 hover:text-slate-100 hover:bg-slate-800 transition-all">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
         </button>
       </div>
@@ -401,11 +413,11 @@
 
   <!-- Paste Prompt Modal (used when the clipboard cannot be read directly) -->
   <div id="paste-modal" class="hidden fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-6" role="dialog" aria-modal="true" aria-labelledby="paste-modal-title">
-    <div id="paste-modal-backdrop" class="absolute inset-0 bg-slate-950/80 backdrop-blur-sm"></div>
+    <div id="paste-modal-backdrop" class="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
     <div class="relative w-full sm:max-w-2xl max-h-[92vh] flex flex-col rounded-t-2xl sm:rounded-2xl bg-slate-900/95 border border-slate-700/80 shadow-2xl shadow-black/60 glow-purple">
       <div class="flex items-center justify-between gap-3 px-5 sm:px-6 py-4 border-b border-slate-800">
         <h2 id="paste-modal-title" data-i18n="pasteTitle" class="text-base sm:text-lg font-bold text-slate-100 uppercase tracking-wider">Paste prompt</h2>
-        <button id="paste-modal-close" type="button" data-i18n-title="close" data-i18n-aria="close" class="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-all">
+        <button id="paste-modal-close" type="button" data-i18n-title="close" data-i18n-aria="close" class="p-2 rounded-lg text-slate-400 hover:text-slate-100 hover:bg-slate-800 transition-all">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
         </button>
       </div>
@@ -416,7 +428,7 @@
         <p id="paste-modal-error" class="hidden mt-2 text-xs sm:text-sm font-semibold text-rose-300"></p>
       </div>
       <div class="flex justify-end gap-2 px-5 sm:px-6 py-4 border-t border-slate-800">
-        <button id="paste-modal-cancel" type="button" data-i18n="cancel" class="px-3.5 py-2 text-xs sm:text-sm font-semibold rounded-xl transition-all text-slate-300 hover:text-white bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/60">Cancel</button>
+        <button id="paste-modal-cancel" type="button" data-i18n="cancel" class="px-3.5 py-2 text-xs sm:text-sm font-semibold rounded-xl transition-all text-slate-300 hover:text-slate-100 bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/60">Cancel</button>
         <button id="paste-modal-import" type="button" data-i18n="pasteImport" class="px-3.5 py-2 text-xs sm:text-sm font-semibold rounded-xl transition-all font-bold text-white bg-indigo-600 hover:bg-indigo-500">Import</button>
       </div>
     </div>
@@ -424,12 +436,12 @@
 
   <!-- Confirm Dialog (showConfirm in state.js) -->
   <div id="confirm-modal" class="hidden fixed inset-0 z-[60] flex items-center justify-center p-4" role="alertdialog" aria-modal="true" aria-labelledby="confirm-title" aria-describedby="confirm-message">
-    <div id="confirm-backdrop" class="absolute inset-0 bg-slate-950/80 backdrop-blur-sm"></div>
+    <div id="confirm-backdrop" class="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
     <div class="relative w-full max-w-md rounded-2xl bg-slate-900/95 border border-slate-700/80 shadow-2xl shadow-black/60 glow-purple p-5 sm:p-6">
       <h2 id="confirm-title" class="text-base sm:text-lg font-bold text-slate-100"></h2>
       <p id="confirm-message" class="mt-2 text-xs sm:text-sm text-slate-300 leading-relaxed"></p>
       <div class="mt-5 flex justify-end gap-2">
-        <button id="confirm-cancel" type="button" data-i18n="cancel" class="px-3.5 py-2 text-xs sm:text-sm font-semibold rounded-xl transition-all text-slate-300 hover:text-white bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/60">Cancel</button>
+        <button id="confirm-cancel" type="button" data-i18n="cancel" class="px-3.5 py-2 text-xs sm:text-sm font-semibold rounded-xl transition-all text-slate-300 hover:text-slate-100 bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/60">Cancel</button>
         <button id="confirm-ok" type="button" class="px-3.5 py-2 text-xs sm:text-sm font-semibold rounded-xl transition-all font-bold text-white bg-rose-600 hover:bg-rose-500"></button>
       </div>
     </div>

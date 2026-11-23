@@ -30,6 +30,8 @@ const MESSAGES = {
   addShot: { en: 'Add Shot', 'zh-Hant': '新增 Shot', ja: 'ショット追加' },
   timeStepLabel: { en: 'Default duration for new shots', 'zh-Hant': '新增鏡頭預設持續時間', ja: '新規ショットのデフォルトの長さ' },
   sec: { en: 'sec', 'zh-Hant': '秒', ja: '秒' },
+  themeToLight: { en: 'Switch to light theme', 'zh-Hant': '切換為亮色主題', ja: 'ライトテーマに切り替え' },
+  themeToDark: { en: 'Switch to dark theme', 'zh-Hant': '切換為暗色主題', ja: 'ダークテーマに切り替え' },
   modeLabel: { en: 'Prompt mode', 'zh-Hant': 'Prompt 模式', ja: 'プロンプトモード' },
   modeI2va: { en: 'Image to video (I2VA)', 'zh-Hant': '圖生影片 (I2VA)', ja: '画像から動画 (I2VA)' },
   modeT2va: { en: 'Text to video (T2VA)', 'zh-Hant': '文生影片 (T2VA)', ja: 'テキストから動画 (T2VA)' },
